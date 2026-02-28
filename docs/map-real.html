@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แผนที่จริง — เชียงใหม่ → พิษณุโลก (สองแคว)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Noto Sans Thai', sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+  }
+  #map { width: 100%; height: 100vh; }
+  .info-box {
+    position: absolute; top: 10px; left: 55px; z-index: 1000;
+    background: rgba(13, 17, 23, 0.92);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    max-width: 340px;
+    backdrop-filter: blur(10px);
+  }
+  .info-box h3 { color: #58a6ff; font-size: 1rem; margin-bottom: 0.3rem; }
+  .info-box .sub { color: #f778ba; font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .info-box .stat { color: #8b949e; font-size: 0.8rem; line-height: 1.6; }
+  .info-box .stat span { font-weight: 600; }
+  .info-box .stat .blue { color: #58a6ff; }
+  .info-box .stat .green { color: #3fb950; }
+  .info-box .stat .pink { color: #f778ba; }
+  .info-box .stat .orange { color: #f0883e; }
+  .info-box .stat .cyan { color: #4fc3f7; }
+  .legend {
+    position: absolute; bottom: 20px; left: 10px; z-index: 1000;
+    background: rgba(13, 17, 23, 0.92);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.75rem;
+    backdrop-filter: blur(10px);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .legend-color { width: 14px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 2000; color: #58a6ff; font-size: 1rem;
+    background: rgba(13, 17, 23, 0.95);
+    padding: 1rem 2rem; border-radius: 10px;
+    border: 1px solid #30363d;
+  }
+  .loading.hidden { display: none; }
+  .leaflet-popup-content-wrapper {
+    background: #161b22 !important;
+    color: #e6edf3 !important;
+    border-radius: 8px !important;
+    border: 1px solid #30363d;
+  }
+  .leaflet-popup-tip { background: #161b22 !important; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="info-box">
+  <h3>Chiang Mai → Phitsanulok</h3>
+  <div class="sub">สองแคว — เมืองสองแคว, พิษณุโลก</div>
+  <div class="stat">
+    <span class="blue">Province boundaries</span> — GeoJSON (geoBoundaries)<br>
+    <span class="cyan">Rivers</span> — แม่น้ำน่าน + แม่น้ำแควน้อย (OSM)<br>
+    <span class="orange">Railway</span> — Northern Line (OSM)<br>
+    <span class="green">GPS track</span> — 34 waypoints, Feb 27-28<br>
+    <span class="pink">PSRU Workshop</span> — ม.ราชภัฏพิบูลสงคราม
+  </div>
+  <div class="stat" id="status" style="margin-top:6px; color:#484f58;">Loading layers...</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-color" style="background:#58a6ff;"></div><span style="color:#8b949e;">Province boundary</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#4fc3f7; height:3px;"></div><span style="color:#8b949e;">River (แม่น้ำ)</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#f0883e; height:2px; border-style:dashed;"></div><span style="color:#8b949e;">Railway</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#3fb950;"></div><span style="color:#8b949e;">GPS route</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f778ba;"></div><span style="color:#8b949e;">Stops</span></div>
+</div>
+
+<div class="loading" id="loading">Loading real geographic data...</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// --- MAP SETUP ---
+const map = L.map('map', { zoomControl: true }).setView([17.8, 99.6], 8);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.geoboundaries.org/">geoBoundaries</a>',
+  maxZoom: 19
+}).addTo(map);
+
+// --- GPS WAYPOINTS (existing data) ---
+const waypoints = [
+  { lat: 18.7513, lon: 98.9856, time: "27 06:00", place: "สถานีรถไฟเชียงใหม่", type: "start" },
+  { lat: 18.783165, lon: 99.028121, time: "27 06:16", place: "เชียงใหม่", type: "travel" },
+  { lat: 18.715515, lon: 99.039492, time: "27 07:39", place: "สารภี", type: "travel" },
+  { lat: 18.636401, lon: 99.041813, time: "27 07:44", place: "ลำพูน", type: "travel" },
+  { lat: 18.595417, lon: 99.020958, time: "27 07:48", place: "ลำพูน", type: "travel" },
+  { lat: 18.500356, lon: 99.05973, time: "27 07:59", place: "ลำพูน", type: "travel" },
+  { lat: 18.456107, lon: 99.087873, time: "27 08:14", place: "แม่ทา", type: "travel" },
+  { lat: 18.461019, lon: 99.137354, time: "27 08:18", place: "แม่ทา", type: "travel" },
+  { lat: 18.502889, lon: 99.202138, time: "27 08:24", place: "แม่ทา", type: "travel" },
+  { lat: 18.508437, lon: 99.263119, time: "27 08:34", place: "แม่ทา", type: "travel" },
+  { lat: 18.392756, lon: 99.265662, time: "27 09:01", place: "ห้างฉัตร", type: "travel" },
+  { lat: 18.348319, lon: 99.35155, time: "27 09:17", place: "ห้างฉัตร", type: "travel" },
+  { lat: 18.312283, lon: 99.413179, time: "27 09:22", place: "ลำปาง", type: "travel" },
+  { lat: 18.281088, lon: 99.469882, time: "27 09:27", place: "สถานีลำปาง", type: "stop" },
+  { lat: 18.223882, lon: 99.515192, time: "27 09:37", place: "ลำปาง", type: "travel" },
+  { lat: 18.202323, lon: 99.560287, time: "27 09:43", place: "แม่ทา", type: "travel" },
+  { lat: 18.240787, lon: 99.596923, time: "27 09:48", place: "เขาสูง", type: "travel" },
+  { lat: 18.256232, lon: 99.655373, time: "27 09:53", place: "แม่เมาะ", type: "travel" },
+  { lat: 18.264667, lon: 99.709782, time: "27 09:58", place: "แม่เมาะ", type: "travel" },
+  { lat: 18.277847, lon: 99.801018, time: "27 10:06", place: "แม่เมาะ", type: "travel" },
+  { lat: 18.297822, lon: 99.86354, time: "27 10:14", place: "เข้าอุตรดิตถ์", type: "travel" },
+  { lat: 18.211666, lon: 99.871989, time: "27 10:29", place: "อ.ลอง (พัก)", type: "stop" },
+  { lat: 18.096358, lon: 99.866883, time: "27 10:49", place: "อ.ลอง", type: "travel" },
+  { lat: 18.040347, lon: 99.916938, time: "27 11:09", place: "อ.ลอง", type: "travel" },
+  { lat: 17.97274, lon: 100.052057, time: "27 11:31", place: "เด่นชัย", type: "travel" },
+  { lat: 17.92115, lon: 100.062211, time: "27 11:36", place: "เด่นชัย", type: "travel" },
+  { lat: 17.839016, lon: 100.046134, time: "27 11:47", place: "อุตรดิตถ์", type: "travel" },
+  { lat: 17.77201, lon: 100.108, time: "27 11:57", place: "อุตรดิตถ์", type: "travel" },
+  { lat: 17.723428, lon: 100.126752, time: "27 12:02", place: "อุตรดิตถ์", type: "travel" },
+  { lat: 17.652857, lon: 100.122463, time: "27 12:07", place: "อุตรดิตถ์", type: "travel" },
+  { lat: 17.599924, lon: 100.093404, time: "27 12:23", place: "บ้านโคก", type: "travel" },
+  { lat: 16.817458, lon: 100.25806, time: "27 16:23", place: "ม.ราชภัฏพิบูลสงคราม", type: "stop" },
+  { lat: 16.83486, lon: 100.213662, time: "28 09:01", place: "PSRU Workshop", type: "stop" },
+  { lat: 16.834723, lon: 100.213696, time: "28 12:11", place: "PSRU — สองแคว", type: "current" }
+];
+
+// Route provinces to highlight
+const routeProvinces = [
+  'Chiang Mai', 'Lamphun', 'Lampang', 'Phrae', 'Uttaradit', 'Phitsanulok',
+  'Chiang Mai Province', 'Lamphun Province', 'Lampang Province',
+  'Phrae Province', 'Uttaradit Province', 'Phitsanulok Province'
+];
+
+// Draw GPS route
+const routeCoords = waypoints.map(w => [w.lat, w.lon]);
+L.polyline(routeCoords, {
+  color: '#3fb950', weight: 3, opacity: 0.8, dashArray: '8, 6'
+}).addTo(map);
+
+// Draw waypoint markers
+const colors = { start: '#3fb950', travel: '#58a6ff', stop: '#f0883e', current: '#f778ba' };
+const sizes = { start: 8, travel: 4, stop: 7, current: 10 };
+
+waypoints.forEach(w => {
+  const m = L.circleMarker([w.lat, w.lon], {
+    radius: sizes[w.type],
+    fillColor: colors[w.type],
+    color: w.type === 'current' ? '#f778ba' : '#0d1117',
+    weight: w.type === 'current' ? 3 : 1,
+    fillOpacity: 0.9
+  }).addTo(map);
+  m.bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;">
+    <strong>${w.place}</strong><br>
+    <span style="color:#8b949e;">${w.time}</span>
+  </div>`);
+});
+
+// Start/end labels
+L.marker([waypoints[0].lat, waypoints[0].lon], {
+  icon: L.divIcon({
+    html: '<div style="background:#3fb950;color:#0d1117;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;">สถานีรถไฟเชียงใหม่</div>',
+    className: '', iconAnchor: [-10, 10]
+  })
+}).addTo(map);
+
+const last = waypoints[waypoints.length - 1];
+L.marker([last.lat, last.lon], {
+  icon: L.divIcon({
+    html: '<div style="background:#f778ba;color:#0d1117;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;">PSRU สองแคว</div>',
+    className: '', iconAnchor: [-10, 10]
+  })
+}).addTo(map);
+
+// Confluence marker — where the two rivers meet
+L.marker([16.824, 100.260], {
+  icon: L.divIcon({
+    html: '<div style="background:rgba(79,195,247,0.9);color:#0d1117;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;white-space:nowrap;border:2px solid #4fc3f7;">สองแคว — จุดบรรจบแม่น้ำ</div>',
+    className: '', iconAnchor: [80, -15]
+  })
+}).addTo(map);
+
+// --- LOAD REAL DATA ---
+const status = document.getElementById('status');
+const loading = document.getElementById('loading');
+let loaded = 0;
+const totalLayers = 3;
+
+function layerDone(name) {
+  loaded++;
+  status.textContent = `Loaded: ${loaded}/${totalLayers} layers`;
+  if (loaded >= totalLayers) {
+    loading.classList.add('hidden');
+    status.style.color = '#3fb950';
+    status.textContent = 'All layers loaded';
+  }
+}
+
+function layerError(name, err) {
+  loaded++;
+  console.warn(`${name} failed:`, err);
+  status.textContent = `${loaded}/${totalLayers} (${name} failed)`;
+  if (loaded >= totalLayers) {
+    loading.classList.add('hidden');
+  }
+}
+
+// 1. PROVINCE BOUNDARIES (geoBoundaries simplified)
+fetch('https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json')
+  .then(r => r.json())
+  .then(geojson => {
+    L.geoJSON(geojson, {
+      style: feature => {
+        const name = feature.properties.name || feature.properties.NAME_1 || feature.properties.shapeName || '';
+        const isRoute = routeProvinces.some(p =>
+          name.toLowerCase().includes(p.toLowerCase().replace(' province', ''))
+        );
+        return {
+          color: isRoute ? '#58a6ff' : '#30363d',
+          weight: isRoute ? 2 : 0.5,
+          fillColor: isRoute ? '#58a6ff' : '#21262d',
+          fillOpacity: isRoute ? 0.08 : 0.02,
+          dashArray: isRoute ? null : '3,3'
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const name = feature.properties.name || feature.properties.NAME_1 || feature.properties.shapeName || 'Unknown';
+        layer.bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;">
+          <strong style="color:#58a6ff;">${name}</strong>
+        </div>`);
+      }
+    }).addTo(map);
+    layerDone('provinces');
+  })
+  .catch(e => layerError('provinces', e));
+
+// 2. RIVERS — แม่น้ำน่าน + แม่น้ำแควน้อย via Overpass API
+const riverQuery = `[out:json][timeout:30];
+(
+  way["waterway"="river"]["name"~"น่าน|Nan"](15.5,99.5,17.5,100.8);
+  way["waterway"="river"]["name"~"แควน้อย|Kwae Noi|Khwae Noi"](15.5,99.5,17.5,100.8);
+);
+out geom;`;
+
+fetch('https://overpass-api.de/api/interpreter', {
+  method: 'POST',
+  body: 'data=' + encodeURIComponent(riverQuery)
+})
+  .then(r => r.json())
+  .then(data => {
+    data.elements.forEach(el => {
+      if (el.geometry) {
+        const latlngs = el.geometry.map(p => [p.lat, p.lon]);
+        const name = el.tags?.name || 'River';
+        const isNan = name.includes('น่าน') || name.includes('Nan');
+        L.polyline(latlngs, {
+          color: isNan ? '#4fc3f7' : '#80deea',
+          weight: isNan ? 4 : 3,
+          opacity: 0.7,
+          smoothFactor: 1.5
+        }).addTo(map).bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;">
+          <strong style="color:#4fc3f7;">${name}</strong><br>
+          <span style="color:#8b949e;">${el.tags?.['name:en'] || ''}</span>
+        </div>`);
+      }
+    });
+    layerDone('rivers');
+  })
+  .catch(e => layerError('rivers', e));
+
+// 3. RAILWAY — Northern Line
+const railQuery = `[out:json][timeout:30];
+(
+  way["railway"="rail"](16.5,98.8,19.0,100.8);
+);
+out geom;`;
+
+fetch('https://overpass-api.de/api/interpreter', {
+  method: 'POST',
+  body: 'data=' + encodeURIComponent(railQuery)
+})
+  .then(r => r.json())
+  .then(data => {
+    data.elements.forEach(el => {
+      if (el.geometry) {
+        const latlngs = el.geometry.map(p => [p.lat, p.lon]);
+        L.polyline(latlngs, {
+          color: '#f0883e',
+          weight: 2,
+          opacity: 0.5,
+          dashArray: '6,4'
+        }).addTo(map);
+      }
+    });
+
+    // Also load stations
+    const stationQuery = `[out:json][timeout:30];
+(node["railway"="station"](16.5,98.8,19.0,100.8););
+out body;`;
+
+    return fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(stationQuery)
+    });
+  })
+  .then(r => r.json())
+  .then(data => {
+    data.elements.forEach(el => {
+      if (el.lat && el.lon) {
+        const name = el.tags?.name || el.tags?.['name:en'] || 'Station';
+        L.circleMarker([el.lat, el.lon], {
+          radius: 4,
+          fillColor: '#f0883e',
+          color: '#0d1117',
+          weight: 1,
+          fillOpacity: 0.8
+        }).addTo(map).bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;">
+          <strong style="color:#f0883e;">🚉 ${name}</strong><br>
+          <span style="color:#8b949e;">${el.tags?.['name:en'] || ''}</span>
+        </div>`);
+      }
+    });
+    layerDone('railway');
+  })
+  .catch(e => layerError('railway', e));
+
+// Fit bounds to route
+map.fitBounds(routeCoords, { padding: [40, 40] });
+</script>
+</body>
+</html>

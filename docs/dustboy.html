@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DustBoy Live</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', monospace; background: #0a0a0a; color: #e0e0e0; padding: 16px; }
+  h1 { font-size: 18px; color: #888; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #555; margin-bottom: 16px; }
+  .meta span { color: #4ade80; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .card { background: #151515; border: 1px solid #252525; border-radius: 8px; padding: 14px; transition: border-color 0.3s; }
+  .card.flash { border-color: #4ade80; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .sensor-id { font-size: 14px; font-weight: 600; color: #fff; }
+  .model-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #1e3a5f; color: #60a5fa; }
+  .model-tag.model-t { background: #3b2f1e; color: #fbbf24; }
+  .pm-row { display: flex; gap: 12px; margin-bottom: 8px; }
+  .pm-val { flex: 1; text-align: center; }
+  .pm-val .num { font-size: 28px; font-weight: 700; line-height: 1; }
+  .pm-val .label { font-size: 10px; color: #666; margin-top: 2px; }
+  .env-row { display: flex; gap: 8px; font-size: 12px; color: #888; }
+  .env-row span { flex: 1; }
+  .status-row { display: flex; justify-content: space-between; font-size: 10px; color: #555; margin-top: 8px; }
+  .good { color: #4ade80; }
+  .moderate { color: #fbbf24; }
+  .unhealthy { color: #f87171; }
+  .hazardous { color: #c084fc; }
+  .offline-card { opacity: 0.3; }
+</style>
+</head>
+<body>
+<h1>DustBoy Live</h1>
+<div class="meta">wss://dustboy-wss-bridge.laris.workers.dev &mdash; <span id="count">0</span> sensors &mdash; <span id="status">connecting...</span></div>
+<div id="grid"></div>
+<script>
+const sensors = new Map();
+const grid = document.getElementById('grid');
+const countEl = document.getElementById('count');
+const statusEl = document.getElementById('status');
+
+function pmColor(pm25) {
+  if (pm25 <= 25) return 'good';
+  if (pm25 <= 50) return 'moderate';
+  if (pm25 <= 100) return 'unhealthy';
+  return 'hazardous';
+}
+
+function parsePayload(topic, raw) {
+  const msg = raw.toString();
+  if (msg === 'offline' || msg === 'online') return null;
+  try {
+    const obj = JSON.parse(msg);
+    const parts = topic.split('/');
+    const isModelT = parts[1] === 'Model-T';
+    const id = isModelT ? (obj.nickname || parts[2]) : (parts[3] || 'unknown');
+    const model = isModelT ? 'T' : 'N';
+
+    let pm25, pm10, pm1, temp, humid, pressure, rssi, name;
+    if (isModelT) {
+      pm25 = obj.pm2_5; pm10 = obj.pm10; temp = obj.temp; humid = obj.humid; rssi = obj.rssi;
+      name = obj.nickname;
+    } else if (obj.d) {
+      const d = obj.d;
+      pm25 = d.pm2_5; pm10 = d.pm10; pm1 = d.raw_PM_SP_UG_1_0;
+      temp = d.temperature_c || d.temp_c; humid = d.humidity_rh || d.humid_rh;
+      pressure = d.pressure_pa; rssi = d.rssi || obj.rssi;
+      name = d.myName || id;
+    } else {
+      pm25 = obj.pm2_5; pm10 = obj.pm10; pm1 = obj.pm1;
+      temp = obj.temp_c; humid = obj.humid_rh;
+      pressure = obj.pressure_pa; rssi = obj.rssi;
+      name = id;
+    }
+    return { id, name, model, pm25, pm10, pm1, temp, humid, pressure, rssi, ts: Date.now() };
+  } catch { return null; }
+}
+
+function renderCard(s) {
+  const cls = pmColor(s.pm25);
+  const age = Math.round((Date.now() - s.ts) / 1000);
+  const ageStr = age < 60 ? `${age}s ago` : `${Math.round(age/60)}m ago`;
+  return `
+    <div class="card" id="card-${s.id}" data-id="${s.id}">
+      <div class="card-header">
+        <span class="sensor-id">${s.name}</span>
+        <span class="model-tag ${s.model === 'T' ? 'model-t' : ''}">${s.model}</span>
+      </div>
+      <div class="pm-row">
+        <div class="pm-val"><div class="num ${cls}">${s.pm25 != null ? Math.round(s.pm25) : '—'}</div><div class="label">PM2.5</div></div>
+        <div class="pm-val"><div class="num" style="color:#888">${s.pm10 != null ? Math.round(s.pm10) : '—'}</div><div class="label">PM10</div></div>
+      </div>
+      <div class="env-row">
+        <span>${s.temp != null ? s.temp.toFixed(1) + '°C' : '—'}</span>
+        <span>${s.humid != null ? s.humid.toFixed(0) + '%' : '—'}</span>
+        ${s.pressure ? `<span>${(s.pressure/100).toFixed(0)} hPa</span>` : ''}
+        ${s.rssi ? `<span>${s.rssi} dBm</span>` : ''}
+      </div>
+      <div class="status-row"><span>${ageStr}</span></div>
+    </div>`;
+}
+
+function render() {
+  const sorted = [...sensors.values()].sort((a, b) => {
+    if (a.model !== b.model) return a.model === 'N' ? -1 : 1;
+    return (a.name || '').localeCompare(b.name || '', undefined, {numeric: true});
+  });
+  grid.innerHTML = sorted.map(renderCard).join('');
+  countEl.textContent = sorted.length;
+}
+
+function flash(id) {
+  const el = document.getElementById('card-' + id);
+  if (el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 600); }
+}
+
+const client = mqtt.connect('wss://dustboy-wss-bridge.laris.workers.dev/mqtt');
+
+client.on('connect', () => {
+  statusEl.textContent = 'connected';
+  statusEl.style.color = '#4ade80';
+  client.subscribe('DUSTBOY/+/+/+/status');
+});
+
+client.on('message', (topic, msg) => {
+  const s = parsePayload(topic, msg);
+  if (!s) return;
+  sensors.set(s.id, s);
+  render();
+  flash(s.id);
+});
+
+client.on('offline', () => { statusEl.textContent = 'offline'; statusEl.style.color = '#f87171'; });
+client.on('error', (e) => { statusEl.textContent = 'error: ' + e.message; statusEl.style.color = '#f87171'; });
+
+setInterval(render, 10000);
+</script>
+</body>
+</html>
