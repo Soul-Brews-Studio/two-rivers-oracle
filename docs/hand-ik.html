@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hand IK — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow: hidden; }
+
+  #canvas-container { width: 100vw; height: 100vh; }
+
+  /* Webcam preview */
+  #webcam-box {
+    position: absolute; bottom: 16px; right: 16px; z-index: 100;
+    border: 2px solid #30363d; border-radius: 12px; overflow: hidden;
+    background: #161b22;
+  }
+  #webcam { width: 240px; height: 180px; object-fit: cover; transform: scaleX(-1); display: block; }
+  #hand-canvas { position: absolute; top: 0; left: 0; width: 240px; height: 180px; transform: scaleX(-1); }
+
+  /* Status bar */
+  .hud {
+    position: absolute; top: 12px; left: 12px; z-index: 100;
+    background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d;
+    border-radius: 10px; padding: 12px 16px; font-size: 0.8rem;
+    backdrop-filter: blur(8px); max-width: 320px;
+  }
+  .hud h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 4px; }
+  .hud .sub { color: #8b949e; font-size: 0.75rem; margin-bottom: 8px; }
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  /* Controls */
+  .controls {
+    position: absolute; top: 12px; right: 12px; z-index: 100;
+    background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d;
+    border-radius: 10px; padding: 12px 16px; backdrop-filter: blur(8px);
+  }
+  .controls button {
+    display: block; width: 100%; padding: 8px 16px; margin: 4px 0;
+    background: #21262d; border: 1px solid #30363d; border-radius: 6px;
+    color: #e6edf3; font-size: 0.8rem; cursor: pointer;
+  }
+  .controls button:hover { border-color: #58a6ff; }
+  .controls button.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+  .controls label { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #8b949e; margin: 6px 0; }
+
+  /* Loading */
+  .loading-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: #0d1117; display: flex; align-items: center; justify-content: center;
+    z-index: 200; flex-direction: column; gap: 12px;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loading-text { color: #58a6ff; font-size: 1.1rem; }
+  .loading-sub { color: #8b949e; font-size: 0.85rem; }
+
+  footer {
+    position: absolute; bottom: 16px; left: 16px; z-index: 100;
+    color: #484f58; font-size: 0.7rem;
+  }
+  footer a { color: #58a6ff; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-text">Loading Kira + MediaPipe...</div>
+  <div class="loading-sub" id="load-status">Initializing Three.js...</div>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- HUD -->
+<div class="hud">
+  <h2>Hand IK</h2>
+  <div class="sub">มือของคุณควบคุม Kira — webcam + MQTT + Three.js IK</div>
+  <div class="status-row"><div class="dot wait" id="dot-hand"></div><span id="status-hand">hand: waiting</span></div>
+  <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+  <div class="status-row"><span id="status-gesture" style="color:#8b949e;">gesture: —</span></div>
+  <div class="status-row"><span id="status-fps" style="color:#484f58;">fps: —</span></div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button id="btn-cam" onclick="toggleCamera()">Start Camera</button>
+  <label><input type="checkbox" id="chk-head" checked> Turn head</label>
+  <label><input type="checkbox" id="chk-follow"> Follow hand</label>
+  <label><input type="checkbox" id="chk-mqtt" checked> MQTT publish</label>
+  <label><input type="checkbox" id="chk-subscribe" checked> MQTT subscribe</label>
+</div>
+
+<!-- Webcam -->
+<div id="webcam-box" style="display:none;">
+  <video id="webcam" autoplay playsinline></video>
+  <canvas id="hand-canvas"></canvas>
+</div>
+
+<footer>
+  <a href="index.html">PSRU Workshop</a> — <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a><br>
+  Two Rivers (สองแคว) — Hand tracking + IK
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { CCDIKSolver } from 'three/addons/animation/CCDIKSolver.js';
+
+// ===== GLOBALS =====
+let scene, camera, renderer, orbitControls;
+let mirrorSphereCamera;
+const OOI = {};
+let IKSolver;
+const v0 = new THREE.Vector3();
+
+// Hand tracking state
+let handsData = { left: null, right: null }; // landmarks per hand
+let gestureData = { left: null, right: null };
+let cameraActive = false;
+let handDetector = null;
+
+// MQTT
+let mqttClient = null;
+const MQTT_TOPIC = 'hand/landmarks';
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+
+// Config
+const conf = {
+  turnHead: true,
+  followHand: false,
+  mqttPublish: true,
+  mqttSubscribe: true,
+};
+
+// ===== INIT THREE.JS =====
+async function init() {
+  const container = document.getElementById('canvas-container');
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0d1117, 0.4);
+  scene.background = new THREE.Color(0x0d1117);
+
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.001, 5000);
+  camera.position.set(0.97, 1.10, 0.73);
+  camera.lookAt(scene.position);
+
+  // Lighting — dark theme
+  const ambient = new THREE.AmbientLight(0xffffff, 4);
+  scene.add(ambient);
+  const dirLight = new THREE.DirectionalLight(0x58a6ff, 3);
+  dirLight.position.set(2, 3, 2);
+  scene.add(dirLight);
+  const rimLight = new THREE.DirectionalLight(0xf778ba, 1.5);
+  rimLight.position.set(-2, 1, -1);
+  scene.add(rimLight);
+
+  // Ground plane
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshStandardMaterial({ color: 0x161b22, roughness: 0.9 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Grid
+  const grid = new THREE.GridHelper(10, 20, 0x30363d, 0x21262d);
+  scene.add(grid);
+
+  setLoadStatus('Loading Kira model...');
+
+  // Load model
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
+
+  const gltf = await gltfLoader.loadAsync('https://threejs.org/examples/models/gltf/kira.glb');
+
+  // Enumerate all bones for debugging + finding right arm
+  const boneMap = {};
+  gltf.scene.traverse(n => {
+    if (n.name === 'head') OOI.head = n;
+    if (n.name === 'lowerarm_l') OOI.lowerarm_l = n;
+    if (n.name === 'Upperarm_l') OOI.Upperarm_l = n;
+    if (n.name === 'hand_l') OOI.hand_l = n;
+    if (n.name === 'target_hand_l') OOI.target_hand_l = n;
+    if (n.name === 'boule') OOI.sphere = n;
+    if (n.name === 'Kira_Shirt_left') OOI.kira = n;
+
+    // Right arm
+    if (n.name === 'lowerarm_r') OOI.lowerarm_r = n;
+    if (n.name === 'Upperarm_r') OOI.Upperarm_r = n;
+    if (n.name === 'hand_r') OOI.hand_r = n;
+    if (n.name === 'target_hand_r') OOI.target_hand_r = n;
+  });
+  scene.add(gltf.scene);
+
+  const targetPosition = OOI.sphere.position.clone();
+  OOI.hand_l.attach(OOI.sphere);
+
+  // Mirror sphere
+  const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512);
+  mirrorSphereCamera = new THREE.CubeCamera(0.05, 50, cubeRenderTarget);
+  scene.add(mirrorSphereCamera);
+  OOI.sphere.material = new THREE.MeshBasicMaterial({ envMap: cubeRenderTarget.texture });
+
+  // Model only has left arm rigged: spine_03 → Upperarm_l → lowerarm_l → hand_l
+  // target_hand_l (bone 22) is the IK target, target_hand_r (bone 23) exists but no right arm chain
+
+  OOI.kira.add(OOI.kira.skeleton.bones[0]);
+
+  const bones = OOI.kira.skeleton.bones;
+  console.log('Bones:', bones.map((b, i) => `${i}: ${b.name}`).join(', '));
+
+  // Left arm IK (only rigged arm in this model)
+  const iks = [{
+    target: 22,   // target_hand_l
+    effector: 6,  // hand_l
+    links: [
+      { index: 5, rotationMin: new THREE.Vector3(1.2, -1.8, -0.4), rotationMax: new THREE.Vector3(1.7, -1.1, 0.3) },  // lowerarm_l
+      { index: 4, rotationMin: new THREE.Vector3(0.1, -0.7, -1.8), rotationMax: new THREE.Vector3(1.1, 0, -1.4) },    // Upperarm_l
+    ],
+  }];
+
+  IKSolver = new CCDIKSolver(OOI.kira, iks);
+  console.log('IK solver ready — left arm only (model has no right arm skeleton)');
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setAnimationLoop(animate);
+  container.appendChild(renderer.domElement);
+
+  // Orbit controls
+  orbitControls = new OrbitControls(camera, renderer.domElement);
+  orbitControls.minDistance = 0.2;
+  orbitControls.maxDistance = 2.5;
+  orbitControls.enableDamping = true;
+  orbitControls.target.copy(targetPosition);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  setLoadStatus('Loading MediaPipe Hands...');
+  await initMediaPipe();
+
+  initMQTT();
+
+  document.getElementById('loading').classList.add('hidden');
+}
+
+// ===== MEDIAPIPE HANDS =====
+async function initMediaPipe() {
+  const { HandLandmarker, FilesetResolver } = await import(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/+esm'
+  );
+
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm'
+  );
+
+  handDetector = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task',
+      delegate: 'GPU'
+    },
+    runningMode: 'VIDEO',
+    numHands: 2,
+    minHandDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+
+  setLoadStatus('MediaPipe ready');
+}
+
+// ===== WEBCAM =====
+window.toggleCamera = async function() {
+  const btn = document.getElementById('btn-cam');
+  const box = document.getElementById('webcam-box');
+  const video = document.getElementById('webcam');
+
+  if (cameraActive) {
+    // Stop
+    const tracks = video.srcObject?.getTracks();
+    tracks?.forEach(t => t.stop());
+    video.srcObject = null;
+    cameraActive = false;
+    btn.textContent = 'Start Camera';
+    btn.classList.remove('active');
+    box.style.display = 'none';
+    setHandStatus(false, 'stopped');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' }
+    });
+    video.srcObject = stream;
+    await video.play();
+    cameraActive = true;
+    btn.textContent = 'Stop Camera';
+    btn.classList.add('active');
+    box.style.display = 'block';
+    setHandStatus(true, 'tracking');
+    detectHands();
+  } catch (e) {
+    setHandStatus(false, 'error: ' + e.message);
+  }
+};
+
+let lastDetectTime = 0;
+async function detectHands() {
+  if (!cameraActive || !handDetector) return;
+
+  const video = document.getElementById('webcam');
+  const now = performance.now();
+
+  if (now - lastDetectTime > 33) { // ~30fps
+    lastDetectTime = now;
+    const results = handDetector.detectForVideo(video, now);
+
+    // Reset both hands
+    handsData = { left: null, right: null };
+    gestureData = { left: null, right: null };
+
+    if (results.landmarks && results.landmarks.length > 0) {
+      const mqttHands = [];
+
+      for (let i = 0; i < results.landmarks.length; i++) {
+        const landmarks = results.landmarks[i];
+        const handedness = results.handedness?.[i]?.[0]?.categoryName || 'Unknown';
+        // MediaPipe mirrors: "Left" in camera = your right hand
+        const side = handedness === 'Left' ? 'right' : 'left';
+
+        handsData[side] = landmarks;
+        gestureData[side] = detectGesture(landmarks);
+        mqttHands.push({ handedness, landmarks: landmarks.map(l => ({ x: l.x, y: l.y, z: l.z })) });
+      }
+
+      drawHandOverlay(results.landmarks, results.handedness);
+
+      // Publish to MQTT
+      if (conf.mqttPublish && mqttClient?.connected) {
+        mqttClient.publish(MQTT_TOPIC, JSON.stringify({ timestamp: Date.now(), hands: mqttHands }));
+      }
+
+      updateGestureDisplay(gestureData.left, gestureData.right);
+    } else {
+      clearHandOverlay();
+      updateGestureDisplay(null, null);
+    }
+  }
+
+  requestAnimationFrame(detectHands);
+}
+
+// ===== GESTURE DETECTION =====
+function detectGesture(landmarks) {
+  if (!landmarks || landmarks.length < 21) return null;
+
+  const wrist = landmarks[0];
+  const fingers = [
+    { name: 'index',  tip: landmarks[8],  pip: landmarks[6] },
+    { name: 'middle', tip: landmarks[12], pip: landmarks[10] },
+    { name: 'ring',   tip: landmarks[16], pip: landmarks[14] },
+    { name: 'pinky',  tip: landmarks[20], pip: landmarks[18] },
+  ];
+
+  let curled = 0;
+  let extended = 0;
+  for (const f of fingers) {
+    if (f.tip.y > f.pip.y) curled++;
+    else extended++;
+  }
+
+  // Thumb check
+  const thumbTip = landmarks[4];
+  const thumbIP = landmarks[3];
+  const thumbExtended = thumbTip.x < thumbIP.x; // For right hand
+
+  if (curled >= 4) return 'fist';
+  if (extended >= 4 && thumbExtended) return 'open';
+  if (fingers[0].tip.y < fingers[0].pip.y && curled >= 3) return 'point';
+  if (fingers[0].tip.y < fingers[0].pip.y && fingers[1].tip.y < fingers[1].pip.y && curled >= 2) return 'peace';
+
+  return 'neutral';
+}
+
+// ===== HAND OVERLAY =====
+function drawHandOverlay(allLandmarks, allHandedness) {
+  const canvas = document.getElementById('hand-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 240;
+  canvas.height = 180;
+  ctx.clearRect(0, 0, 240, 180);
+
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [0,9],[9,10],[10,11],[11,12],
+    [0,13],[13,14],[14,15],[15,16],
+    [0,17],[17,18],[18,19],[19,20],
+    [5,9],[9,13],[13,17]
+  ];
+
+  const colors = { Left: '#f778ba', Right: '#58a6ff' }; // MediaPipe labels (mirrored)
+
+  for (let h = 0; h < allLandmarks.length; h++) {
+    const landmarks = allLandmarks[h];
+    const handedness = allHandedness?.[h]?.[0]?.categoryName || 'Unknown';
+    const color = colors[handedness] || '#3fb950';
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    for (const [a, b] of connections) {
+      ctx.beginPath();
+      ctx.moveTo(landmarks[a].x * 240, landmarks[a].y * 180);
+      ctx.lineTo(landmarks[b].x * 240, landmarks[b].y * 180);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < landmarks.length; i++) {
+      const l = landmarks[i];
+      ctx.beginPath();
+      ctx.arc(l.x * 240, l.y * 180, i === 8 ? 5 : 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = i === 8 ? '#fbbf24' : color;
+      ctx.fill();
+    }
+  }
+}
+
+function clearHandOverlay() {
+  const canvas = document.getElementById('hand-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+
+  mqttClient.on('connect', () => {
+    setMQTTStatus(true, 'connected');
+    if (conf.mqttSubscribe) {
+      mqttClient.subscribe(MQTT_TOPIC);
+    }
+  });
+
+  mqttClient.on('message', (topic, message) => {
+    if (!conf.mqttSubscribe) return;
+    if (cameraActive) return; // Local camera takes priority
+
+    try {
+      const data = JSON.parse(message.toString());
+      if (data.hands && data.hands.length > 0) {
+        handsData = { left: null, right: null };
+        gestureData = { left: null, right: null };
+        for (const hand of data.hands) {
+          const side = hand.handedness === 'Left' ? 'right' : 'left';
+          handsData[side] = hand.landmarks;
+          gestureData[side] = detectGesture(hand.landmarks);
+        }
+        setHandStatus(true, 'mqtt remote');
+        updateGestureDisplay(gestureData.left, gestureData.right);
+      }
+    } catch {}
+  });
+
+  mqttClient.on('offline', () => setMQTTStatus(false, 'offline'));
+  mqttClient.on('error', (e) => setMQTTStatus(false, 'error'));
+}
+
+// ===== MAP HAND → IK TARGET =====
+function mapHandToIK() {
+  if (!OOI.target_hand_l) return;
+
+  // Use either hand to control Kira's left arm (only rigged arm)
+  // Priority: right hand (your dominant hand), fallback to left
+  const landmarks = handsData.right || handsData.left;
+  if (!landmarks) return;
+
+  const tip = landmarks[8]; // index finger tip
+
+  // Extract camera's actual screen axes from its world matrix
+  const camRight = new THREE.Vector3();
+  const camUp = new THREE.Vector3();
+  const camFwd = new THREE.Vector3();
+  camera.matrixWorld.extractBasis(camRight, camUp, camFwd);
+
+  // Hand coords centered at 0.5
+  const handX = (tip.x - 0.5) * 1.0;    // left/right on screen
+  const handY = (0.5 - tip.y) * 0.8;     // up/down (inverted)
+
+  // Project onto a plane near Kira's arm reach
+  const armCenter = new THREE.Vector3(0.2, 0.9, 0.2);
+  const worldPos = armCenter.clone()
+    .addScaledVector(camRight, handX)
+    .addScaledVector(camUp, handY);
+
+  // Convert world → parent bone's local space
+  const target = OOI.target_hand_l;
+  if (target.parent) {
+    target.parent.updateWorldMatrix(true, false);
+    const localPos = target.parent.worldToLocal(worldPos);
+    target.position.lerp(localPos, 0.15);
+  } else {
+    target.position.lerp(worldPos, 0.15);
+  }
+}
+
+// ===== ANIMATE =====
+let frameCount = 0;
+let lastFpsTime = performance.now();
+
+function animate() {
+  // FPS counter
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime > 1000) {
+    document.getElementById('status-fps').textContent = `fps: ${frameCount}`;
+    frameCount = 0;
+    lastFpsTime = now;
+  }
+
+  // Mirror sphere
+  if (OOI.sphere && mirrorSphereCamera) {
+    OOI.sphere.visible = false;
+    OOI.sphere.getWorldPosition(mirrorSphereCamera.position);
+    mirrorSphereCamera.update(renderer, scene);
+    OOI.sphere.visible = true;
+  }
+
+  // Map hand tracking to IK targets (both hands)
+  if (handsData.left || handsData.right) {
+    mapHandToIK();
+  }
+
+  // Head tracking
+  if (OOI.head && OOI.sphere && conf.turnHead) {
+    OOI.sphere.getWorldPosition(v0);
+    OOI.head.lookAt(v0);
+    OOI.head.rotation.set(OOI.head.rotation.x, OOI.head.rotation.y + Math.PI, OOI.head.rotation.z);
+  }
+
+  // Camera follow
+  if (OOI.sphere && conf.followHand) {
+    OOI.sphere.getWorldPosition(v0);
+    orbitControls.target.lerp(v0, 0.05);
+  }
+
+  // IK solve
+  if (IKSolver) {
+    IKSolver.update();
+    scene.traverse(obj => { if (obj.isSkinnedMesh) obj.computeBoundingSphere(); });
+  }
+
+  orbitControls.update();
+  renderer.render(scene, camera);
+}
+
+// ===== UI HELPERS =====
+function setLoadStatus(text) {
+  document.getElementById('load-status').textContent = text;
+}
+
+function setHandStatus(on, text) {
+  document.getElementById('dot-hand').className = on ? 'dot on' : 'dot off';
+  document.getElementById('status-hand').textContent = 'hand: ' + text;
+}
+
+function setMQTTStatus(on, text) {
+  document.getElementById('dot-mqtt').className = on ? 'dot on' : 'dot off';
+  document.getElementById('status-mqtt').textContent = 'mqtt: ' + text;
+}
+
+function updateGestureDisplay(leftGesture, rightGesture) {
+  const el = document.getElementById('status-gesture');
+  const colors = { fist: '#f87171', open: '#3fb950', point: '#58a6ff', peace: '#fbbf24', neutral: '#8b949e' };
+  const parts = [];
+  if (leftGesture) parts.push(`L:${leftGesture}`);
+  if (rightGesture) parts.push(`R:${rightGesture}`);
+  if (parts.length === 0) { el.textContent = 'gesture: —'; el.style.color = '#8b949e'; return; }
+  el.textContent = `gesture: ${parts.join(' ')}`;
+  el.style.color = colors[leftGesture || rightGesture] || '#8b949e';
+}
+
+// Checkbox bindings
+document.getElementById('chk-head').addEventListener('change', e => conf.turnHead = e.target.checked);
+document.getElementById('chk-follow').addEventListener('change', e => conf.followHand = e.target.checked);
+document.getElementById('chk-mqtt').addEventListener('change', e => conf.mqttPublish = e.target.checked);
+document.getElementById('chk-subscribe').addEventListener('change', e => {
+  conf.mqttSubscribe = e.target.checked;
+  if (mqttClient?.connected) {
+    if (e.target.checked) mqttClient.subscribe(MQTT_TOPIC);
+    else mqttClient.unsubscribe(MQTT_TOPIC);
+  }
+});
+
+// ===== START =====
+init().catch(e => {
+  setLoadStatus('Error: ' + e.message);
+  console.error(e);
+});
+</script>
+</body>
+</html>

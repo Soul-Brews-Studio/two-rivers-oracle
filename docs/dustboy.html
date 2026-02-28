@@ -124,10 +124,10 @@
   <!-- Code tabs -->
   <div class="section-label">Source Code — โค้ดทั้งหมด</div>
   <div class="tab-bar">
-    <div class="tab active" onclick="showTab('connect')">1. Connect</div>
-    <div class="tab" onclick="showTab('subscribe')">2. Subscribe</div>
-    <div class="tab" onclick="showTab('parse')">3. Parse</div>
-    <div class="tab" onclick="showTab('render')">4. Render</div>
+    <div class="tab active" onclick="showTab('connect',this)">1. Connect</div>
+    <div class="tab" onclick="showTab('subscribe',this)">2. Subscribe</div>
+    <div class="tab" onclick="showTab('parse',this)">3. Parse</div>
+    <div class="tab" onclick="showTab('render',this)">4. Render</div>
   </div>
 
   <div class="tab-content active" id="tab-connect">
@@ -220,11 +220,11 @@ client.<span class="func">on</span>(<span class="string">'message'</span>, (topi
 
 <script>
 // ===== TAB SWITCHING =====
-function showTab(name) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+function showTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  event.target.classList.add('active');
+  el.classList.add('active');
 }
 
 // ===== MQTT CONNECTION =====
