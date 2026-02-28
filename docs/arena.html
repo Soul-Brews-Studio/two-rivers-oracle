@@ -113,6 +113,46 @@
     font-family: monospace; font-size: 0.65rem;
   }
 
+  /* ===== TOUCH CONTROLS (mobile) ===== */
+  .touch-controls { display: none; }
+  @media (pointer: coarse), (max-width: 768px) {
+    .touch-controls { display: block; }
+    .controls-hint { display: none !important; }
+  }
+  .joystick-zone {
+    position: fixed; bottom: 20px; left: 20px; z-index: 200;
+    width: 140px; height: 140px;
+  }
+  .joystick-base {
+    width: 140px; height: 140px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
+    position: relative;
+  }
+  .joystick-knob {
+    width: 50px; height: 50px; border-radius: 50%;
+    background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4);
+    position: absolute; top: 45px; left: 45px;
+    transition: none; pointer-events: none;
+  }
+  .punch-btn {
+    position: fixed; bottom: 30px; right: 30px; z-index: 200;
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(248, 113, 113, 0.3); border: 3px solid rgba(248, 113, 113, 0.6);
+    color: #f87171; font-size: 0.8rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .punch-btn:active { background: rgba(248, 113, 113, 0.6); }
+  .run-btn {
+    position: fixed; bottom: 30px; right: 130px; z-index: 200;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(88, 166, 255, 0.2); border: 2px solid rgba(88, 166, 255, 0.4);
+    color: #58a6ff; font-size: 0.65rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .run-btn.active { background: rgba(88, 166, 255, 0.5); border-color: #58a6ff; }
+
   /* ===== DAMAGE FLASH ===== */
   .damage-flash {
     position: fixed; inset: 0; z-index: 150; pointer-events: none;
@@ -136,7 +176,7 @@
     <div class="sub">MQTT Multiplayer Battle — Oracle vs Oracle</div>
     <input type="text" id="name-input" placeholder="Your Oracle name..." maxlength="20" autocomplete="off">
     <button id="btn-join" onclick="joinGame()">Enter Arena</button>
-    <div class="hint">WASD move · Shift run · Space punch</div>
+    <div class="hint">WASD move · Shift run · Space punch<br>Mobile: joystick + buttons</div>
   </div>
 </div>
 
@@ -172,6 +212,17 @@
   <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;
   <kbd>Shift</kbd> run &nbsp;
   <kbd>Space</kbd> punch
+</div>
+
+<!-- Touch Controls (mobile) -->
+<div class="touch-controls" id="touch-controls" style="display:none;">
+  <div class="joystick-zone" id="joystick-zone">
+    <div class="joystick-base" id="joystick-base">
+      <div class="joystick-knob" id="joystick-knob"></div>
+    </div>
+  </div>
+  <div class="punch-btn" id="punch-btn">PUNCH</div>
+  <div class="run-btn" id="run-btn">RUN</div>
 </div>
 
 <!-- Damage Flash -->
@@ -470,12 +521,96 @@ function triggerEmote(player, emoteName, onDone) {
 }
 
 // ===== INPUT =====
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+let touchJoystick = { active: false, dx: 0, dz: 0, touchId: null };
+let touchRunning = false;
+
 function setupInput() {
+  // Keyboard
   window.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (e.code === 'Space') { e.preventDefault(); doPunch(); }
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  // Touch controls
+  if (isTouchDevice) {
+    document.getElementById('touch-controls').style.display = 'block';
+    document.getElementById('controls-hint').style.display = 'none';
+    setupTouchJoystick();
+    setupTouchButtons();
+  }
+}
+
+function setupTouchJoystick() {
+  const zone = document.getElementById('joystick-zone');
+  const knob = document.getElementById('joystick-knob');
+  const baseRect = () => document.getElementById('joystick-base').getBoundingClientRect();
+  const MAX_R = 45; // max knob travel from center
+
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    touchJoystick.active = true;
+    touchJoystick.touchId = t.identifier;
+    updateJoystick(t);
+  }, { passive: false });
+
+  zone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === touchJoystick.touchId) updateJoystick(t);
+    }
+  }, { passive: false });
+
+  const endJoystick = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === touchJoystick.touchId) {
+        touchJoystick.active = false;
+        touchJoystick.dx = 0;
+        touchJoystick.dz = 0;
+        touchJoystick.touchId = null;
+        knob.style.transform = 'translate(0px, 0px)';
+      }
+    }
+  };
+  zone.addEventListener('touchend', endJoystick);
+  zone.addEventListener('touchcancel', endJoystick);
+
+  function updateJoystick(touch) {
+    const r = baseRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let ox = touch.clientX - cx;
+    let oy = touch.clientY - cy;
+    const dist = Math.sqrt(ox * ox + oy * oy);
+    if (dist > MAX_R) { ox = ox / dist * MAX_R; oy = oy / dist * MAX_R; }
+    knob.style.transform = `translate(${ox}px, ${oy}px)`;
+    // Normalize to -1..1
+    touchJoystick.dx = ox / MAX_R;
+    touchJoystick.dz = oy / MAX_R;
+  }
+}
+
+function setupTouchButtons() {
+  const punchBtn = document.getElementById('punch-btn');
+  const runBtn = document.getElementById('run-btn');
+
+  punchBtn.addEventListener('touchstart', e => { e.preventDefault(); doPunch(); }, { passive: false });
+
+  runBtn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    touchRunning = true;
+    runBtn.classList.add('active');
+  }, { passive: false });
+  runBtn.addEventListener('touchend', e => {
+    touchRunning = false;
+    runBtn.classList.remove('active');
+  });
+  runBtn.addEventListener('touchcancel', e => {
+    touchRunning = false;
+    runBtn.classList.remove('active');
+  });
 }
 
 // ===== LOCAL PLAYER UPDATE =====
@@ -487,16 +622,22 @@ function updateLocalPlayer(delta) {
   const back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'];
   const right = keys['KeyD'] || keys['ArrowRight'];
-  const running = keys['ShiftLeft'] || keys['ShiftRight'];
-  const moving = fwd || back || left || right;
+  const running = keys['ShiftLeft'] || keys['ShiftRight'] || touchRunning;
+
+  // Combine keyboard + touch joystick
+  let dx = 0, dz = 0;
+  if (fwd) dz -= 1;
+  if (back) dz += 1;
+  if (left) dx -= 1;
+  if (right) dx += 1;
+  if (touchJoystick.active) {
+    dx += touchJoystick.dx;
+    dz += touchJoystick.dz;
+  }
+  const len = Math.sqrt(dx * dx + dz * dz);
+  const moving = len > 0.15; // deadzone for touch
 
   if (moving) {
-    let dx = 0, dz = 0;
-    if (fwd) dz -= 1;
-    if (back) dz += 1;
-    if (left) dx -= 1;
-    if (right) dx += 1;
-    const len = Math.sqrt(dx * dx + dz * dz) || 1;
     dx /= len; dz /= len;
 
     const speed = running ? RUN_SPEED : WALK_SPEED;
