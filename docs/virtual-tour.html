@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VR Training Equipment Tour — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow: hidden; }
+
+  canvas { display: block; width: 100vw; height: 100vh; }
+
+  /* HUD Overlay */
+  .hud { position: fixed; top: 0; left: 0; width: 100%; pointer-events: none; z-index: 10; }
+  .hud > * { pointer-events: auto; }
+
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: rgba(22,27,34,0.85); border-bottom: 1px solid #30363d;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  /* Crosshair */
+  .crosshair {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 24px; height: 24px; z-index: 20; pointer-events: none;
+  }
+  .crosshair::before, .crosshair::after {
+    content: ''; position: absolute; background: rgba(88,166,255,0.7);
+  }
+  .crosshair::before { top: 50%; left: 0; width: 100%; height: 2px; transform: translateY(-50%); }
+  .crosshair::after { left: 50%; top: 0; height: 100%; width: 2px; transform: translateX(-50%); }
+  .crosshair.active::before, .crosshair.active::after { background: #3fb950; }
+
+  /* Info Panel */
+  .info-panel {
+    position: fixed; top: 60px; right: -380px; width: 360px; max-height: calc(100vh - 80px);
+    background: rgba(22,27,34,0.92); border: 1px solid #30363d; border-radius: 12px;
+    padding: 20px; z-index: 15; transition: right 0.3s ease; overflow-y: auto;
+  }
+  .info-panel.open { right: 16px; }
+  .info-panel h2 { color: #58a6ff; font-size: 1.1rem; margin-bottom: 6px; }
+  .info-panel .equip-name { color: #3fb950; font-size: 1.4rem; font-weight: 700; margin-bottom: 12px; }
+  .info-panel .desc { color: #8b949e; font-size: 0.85rem; line-height: 1.6; margin-bottom: 12px; }
+  .info-panel .specs { font-size: 0.8rem; }
+  .info-panel .specs dt { color: #58a6ff; font-weight: 600; margin-top: 8px; }
+  .info-panel .specs dd { color: #e6edf3; margin-left: 0; }
+  .info-panel .ai-narration {
+    margin-top: 16px; padding: 12px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 8px; font-size: 0.8rem; color: #e6edf3; line-height: 1.5;
+  }
+  .info-panel .ai-narration .label { color: #f0883e; font-weight: 600; font-size: 0.7rem; margin-bottom: 4px; }
+
+  /* Mini-map */
+  .minimap {
+    position: fixed; bottom: 16px; left: 16px; width: 160px; height: 160px;
+    background: rgba(13,17,23,0.9); border: 1px solid #30363d; border-radius: 8px;
+    z-index: 15; overflow: hidden;
+  }
+  .minimap canvas { width: 100%; height: 100%; }
+
+  /* Instructions overlay */
+  .instructions {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(22,27,34,0.85); border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 16px; z-index: 15; font-size: 0.7rem; color: #8b949e; text-align: center;
+    transition: opacity 0.5s;
+  }
+  .instructions kbd {
+    display: inline-block; padding: 1px 6px; background: #21262d; border: 1px solid #30363d;
+    border-radius: 4px; color: #e6edf3; font-family: monospace; font-size: 0.7rem;
+  }
+
+  /* Mobile joystick */
+  .joystick-zone {
+    position: fixed; bottom: 16px; right: 16px; width: 120px; height: 120px;
+    z-index: 15; display: none;
+  }
+  .joystick-base {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(22,27,34,0.7); border: 2px solid #30363d;
+    position: relative;
+  }
+  .joystick-thumb {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(88,166,255,0.6); border: 1px solid #58a6ff;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    transition: none;
+  }
+
+  @media (pointer: coarse) {
+    .joystick-zone { display: block; }
+    .instructions { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="header">
+    <h1>VR Training Equipment Tour</h1>
+    <span class="sub">ชมอุปกรณ์ฝึก 3D — จ้องมองเพื่อดูรายละเอียด</span>
+    <div class="status-row" style="margin-left:12px;">
+      <div class="dot wait" id="dot-mqtt"></div>
+      <span id="status-mqtt">mqtt: connecting...</span>
+    </div>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="arena.html">Arena</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+</div>
+
+<div class="crosshair" id="crosshair"></div>
+
+<div class="info-panel" id="info-panel">
+  <div class="label" style="color:#8b949e; font-size:0.65rem; text-transform:uppercase; margin-bottom:4px;">Equipment Info</div>
+  <div class="equip-name" id="equip-name"></div>
+  <div class="desc" id="equip-desc"></div>
+  <dl class="specs" id="equip-specs"></dl>
+  <div class="ai-narration">
+    <div class="label">AI Narrator</div>
+    <div id="ai-text"></div>
+  </div>
+</div>
+
+<div class="minimap" id="minimap">
+  <canvas id="minimap-canvas" width="160" height="160"></canvas>
+</div>
+
+<div class="instructions" id="instructions">
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> เดิน &nbsp;|&nbsp;
+  คลิกเพื่อล็อคเมาส์ &nbsp;|&nbsp;
+  จ้องมองอุปกรณ์เพื่อดูข้อมูล
+</div>
+
+<div class="joystick-zone" id="joystick-zone">
+  <div class="joystick-base" id="joystick-base">
+    <div class="joystick-thumb" id="joystick-thumb"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const ROOM_W = 20, ROOM_D = 16, ROOM_H = 4;
+const MOVE_SPEED = 4;
+const LOOK_SPEED = 0.002;
+
+// ===== EQUIPMENT DATA =====
+const EQUIPMENT = [
+  {
+    id: 'motor',
+    name: 'มอเตอร์ไฟฟ้า 3 เฟส',
+    nameEn: '3-Phase Motor',
+    color: 0xfbbf24,
+    pos: [-6, 0, -4],
+    desc: 'มอเตอร์เหนี่ยวนำ 3 เฟส ใช้ในงานอุตสาหกรรม ขับเคลื่อนปั๊ม พัดลม สายพานลำเลียง',
+    specs: {
+      'กำลัง': '3.7 kW (5 HP)',
+      'แรงดัน': '380V 3-Phase',
+      'ความเร็วรอบ': '1450 RPM',
+      'ประสิทธิภาพ': 'IE3 Premium',
+    },
+    ai: 'มอเตอร์ไฟฟ้า 3 เฟส เป็นตัวขับเคลื่อนหลักในโรงงาน หลักการทำงานคือสนามแม่เหล็กหมุนจากกระแสไฟฟ้า 3 เฟส ทำให้โรเตอร์หมุน — เหมาะสำหรับโหลดที่ต้องการแรงบิดสูงและทำงานต่อเนื่อง',
+  },
+  {
+    id: 'plc',
+    name: 'PLC Siemens S7-1200',
+    nameEn: 'PLC Controller',
+    color: 0x9ca3af,
+    pos: [0, 0, -5],
+    desc: 'PLC (Programmable Logic Controller) ควบคุมกระบวนการอัตโนมัติในโรงงาน เขียนโปรแกรมด้วย Ladder / FBD',
+    specs: {
+      'รุ่น': 'CPU 1214C DC/DC/DC',
+      'I/O': '14 DI / 10 DO / 2 AI',
+      'สื่อสาร': 'PROFINET / Ethernet',
+      'หน่วยความจำ': '100 KB Work Memory',
+    },
+    ai: 'PLC คือสมองของระบบอัตโนมัติ — รับ input จากเซ็นเซอร์ ประมวลผลตาม logic ที่โปรแกรมไว้ แล้วสั่ง output ออกไปควบคุมอุปกรณ์ ใช้ในสายการผลิต ระบบ conveyor ระบบ HVAC',
+  },
+  {
+    id: 'sensor',
+    name: 'ชุดเซ็นเซอร์ IoT',
+    nameEn: 'IoT Sensor Kit',
+    color: 0x3b82f6,
+    pos: [6, 0, -4],
+    desc: 'ชุดเซ็นเซอร์ IoT วัดอุณหภูมิ ความชื้น แสง ส่งข้อมูลผ่าน MQTT / HTTP',
+    specs: {
+      'MCU': 'ESP32-S3 DevKit',
+      'เซ็นเซอร์': 'DHT22 / BH1750 / MQ-135',
+      'การสื่อสาร': 'WiFi + BLE + MQTT',
+      'พลังงาน': 'USB-C / Solar 5V',
+    },
+    ai: 'ชุดเซ็นเซอร์ IoT เชื่อมโลกจริงกับ digital — วัดค่าสิ่งแวดล้อม ส่งขึ้น cloud ผ่าน MQTT แล้ว dashboard แสดงผลแบบ real-time — เป็นพื้นฐานของ Smart Factory และ Industry 4.0',
+  },
+  {
+    id: 'oscilloscope',
+    name: 'ออสซิลโลสโคป',
+    nameEn: 'Digital Oscilloscope',
+    color: 0x22c55e,
+    pos: [-6, 0, 3],
+    desc: 'เครื่องมือวัดสัญญาณไฟฟ้า แสดงรูปคลื่นบนหน้าจอ วิเคราะห์ frequency, amplitude, phase',
+    specs: {
+      'แบนด์วิดท์': '200 MHz',
+      'ช่อง': '4 Channel',
+      'Sample Rate': '2 GSa/s',
+      'หน้าจอ': '7" TFT Color',
+    },
+    ai: 'ออสซิลโลสโคปเป็นดวงตาของวิศวกรไฟฟ้า — เห็นสัญญาณที่มองไม่เห็นด้วยตาเปล่า ใช้วิเคราะห์ปัญหาในวงจร ตรวจสอบ timing ของ digital signal และวัด power quality',
+  },
+  {
+    id: 'robot',
+    name: 'แขนกลหุ่นยนต์ 6 แกน',
+    nameEn: '6-Axis Robot Arm',
+    color: 0xef4444,
+    pos: [6, 0, 3],
+    desc: 'แขนกลอุตสาหกรรม 6 องศาอิสระ ใช้ในงานประกอบชิ้นส่วน เชื่อม หยิบวาง',
+    specs: {
+      'แกน': '6 DOF (Degrees of Freedom)',
+      'พิสัย': '850 mm',
+      'น้ำหนักยก': '5 kg',
+      'ความแม่นยำ': '±0.02 mm',
+    },
+    ai: 'แขนกล 6 แกน เคลื่อนที่ได้อิสระในทุกทิศทาง — แต่ละข้อต่อมีเซอร์โวมอเตอร์ควบคุมด้วย trajectory planning ทำงานร่วมกับ vision system สำหรับ pick-and-place อัตโนมัติ',
+  },
+];
+
+// ===== SCENE SETUP =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e14);
+scene.fog = new THREE.Fog(0x0a0e14, 15, 30);
+
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+
+// ===== LIGHTING =====
+const ambient = new THREE.AmbientLight(0x404060, 0.6);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5, 8, 3);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024, 1024);
+scene.add(dirLight);
+
+// Overhead strip lights
+for (let z = -5; z <= 5; z += 5) {
+  const stripLight = new THREE.PointLight(0x88aaff, 0.5, 12);
+  stripLight.position.set(0, 3.8, z);
+  scene.add(stripLight);
+  // Light fixture visual
+  const fixture = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 0.08, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0xcccccc, emissive: 0x334466, emissiveIntensity: 0.5 })
+  );
+  fixture.position.copy(stripLight.position);
+  scene.add(fixture);
+}
+
+// ===== ROOM =====
+// Floor — grid pattern
+const floorGeo = new THREE.PlaneGeometry(ROOM_W, ROOM_D);
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a1f2e, roughness: 0.8 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Grid lines on floor
+const gridHelper = new THREE.GridHelper(ROOM_W, 20, 0x2a2f3e, 0x1e2330);
+scene.add(gridHelper);
+
+// Walls
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x161b22, roughness: 0.9, side: THREE.DoubleSide });
+// Back wall
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_H), wallMat);
+backWall.position.set(0, ROOM_H / 2, -ROOM_D / 2);
+scene.add(backWall);
+// Front wall
+const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_H), wallMat);
+frontWall.position.set(0, ROOM_H / 2, ROOM_D / 2);
+frontWall.rotation.y = Math.PI;
+scene.add(frontWall);
+// Left wall
+const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_D, ROOM_H), wallMat);
+leftWall.position.set(-ROOM_W / 2, ROOM_H / 2, 0);
+leftWall.rotation.y = Math.PI / 2;
+scene.add(leftWall);
+// Right wall
+const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_D, ROOM_H), wallMat);
+rightWall.position.set(ROOM_W / 2, ROOM_H / 2, 0);
+rightWall.rotation.y = -Math.PI / 2;
+scene.add(rightWall);
+// Ceiling
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_D), new THREE.MeshStandardMaterial({ color: 0x12161f, side: THREE.DoubleSide }));
+ceiling.rotation.x = Math.PI / 2;
+ceiling.position.y = ROOM_H;
+scene.add(ceiling);
+
+// ===== EQUIPMENT MODELS =====
+const equipmentMeshes = [];
+const labelSprites = [];
+
+function createMotor(pos, color) {
+  const group = new THREE.Group();
+  // Body cylinder
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.4, 0.4, 0.8, 16),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.6 })
+  );
+  body.rotation.z = Math.PI / 2;
+  body.position.y = 0.7;
+  body.castShadow = true;
+  group.add(body);
+  // Shaft
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 0.6, 8),
+    new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 })
+  );
+  shaft.rotation.z = Math.PI / 2;
+  shaft.position.set(0.7, 0.7, 0);
+  group.add(shaft);
+  // End caps
+  for (const side of [-0.4, 0.4]) {
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.42, 0.05, 16),
+      new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.7 })
+    );
+    cap.rotation.z = Math.PI / 2;
+    cap.position.set(side, 0.7, 0);
+    group.add(cap);
+  }
+  // Base plate
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.1, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x444444 })
+  );
+  base.position.y = 0.25;
+  group.add(base);
+  // Mounting feet
+  for (const x of [-0.35, 0.35]) {
+    for (const z of [-0.2, 0.2]) {
+      const foot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 0.2, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x555555 })
+      );
+      foot.position.set(x, 0.1, z);
+      group.add(foot);
+    }
+  }
+  // Pedestal
+  const pedestal = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 0.5, 0.8),
+    new THREE.MeshStandardMaterial({ color: 0x21262d })
+  );
+  pedestal.position.y = -0.05;
+  pedestal.receiveShadow = true;
+  group.add(pedestal);
+  group.position.set(...pos);
+  return group;
+}
+
+function createPLC(pos, color) {
+  const group = new THREE.Group();
+  // Main body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.8, 0.3),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.6 })
+  );
+  body.position.y = 1.1;
+  body.castShadow = true;
+  group.add(body);
+  // LED dots
+  const ledColors = [0x3fb950, 0x3fb950, 0xfbbf24, 0x58a6ff];
+  for (let i = 0; i < 4; i++) {
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(0.025, 8, 8),
+      new THREE.MeshStandardMaterial({ color: ledColors[i], emissive: ledColors[i], emissiveIntensity: 1.0 })
+    );
+    led.position.set(-0.15 + i * 0.1, 1.35, 0.16);
+    group.add(led);
+  }
+  // DIN rail
+  const rail = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.05, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 })
+  );
+  rail.position.y = 0.65;
+  group.add(rail);
+  // Terminal blocks
+  for (let i = 0; i < 6; i++) {
+    const terminal = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.1, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x222222 })
+    );
+    terminal.position.set(-0.2 + i * 0.08, 1.55, 0.12);
+    group.add(terminal);
+  }
+  // Cabinet stand
+  const stand = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.6, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x21262d })
+  );
+  stand.position.y = 0.3;
+  stand.receiveShadow = true;
+  group.add(stand);
+  group.position.set(...pos);
+  return group;
+}
+
+function createSensorKit(pos, color) {
+  const group = new THREE.Group();
+  // Main board box
+  const board = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.4, 0.4),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.5 })
+  );
+  board.position.y = 0.9;
+  board.castShadow = true;
+  group.add(board);
+  // Antenna
+  const antenna = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.015, 0.015, 0.4, 6),
+    new THREE.MeshStandardMaterial({ color: 0xcccccc })
+  );
+  antenna.position.set(0.2, 1.3, 0);
+  group.add(antenna);
+  // Antenna tip
+  const tip = new THREE.Mesh(
+    new THREE.SphereGeometry(0.03, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xf87171, emissive: 0xf87171, emissiveIntensity: 0.5 })
+  );
+  tip.position.set(0.2, 1.52, 0);
+  group.add(tip);
+  // Sensor modules on top
+  const sensorColors = [0x22c55e, 0xfbbf24, 0xef4444];
+  for (let i = 0; i < 3; i++) {
+    const sensor = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.08, 0.12),
+      new THREE.MeshStandardMaterial({ color: sensorColors[i] })
+    );
+    sensor.position.set(-0.15 + i * 0.15, 1.15, 0);
+    group.add(sensor);
+  }
+  // Breadboard / table
+  const table = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.6, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x21262d })
+  );
+  table.position.y = 0.3;
+  table.receiveShadow = true;
+  group.add(table);
+  group.position.set(...pos);
+  return group;
+}
+
+function createOscilloscope(pos, color) {
+  const group = new THREE.Group();
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.6, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7 })
+  );
+  body.position.y = 1.0;
+  body.castShadow = true;
+  group.add(body);
+  // Screen
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.55, 0.35),
+    new THREE.MeshStandardMaterial({ color: 0x0a1a0a, emissive: 0x0a1a0a, emissiveIntensity: 0.3 })
+  );
+  screen.position.set(0, 1.05, 0.201);
+  group.add(screen);
+  // Sine wave on screen (using line)
+  const wavePts = [];
+  for (let i = 0; i <= 40; i++) {
+    const x = -0.25 + (i / 40) * 0.5;
+    const y = Math.sin(i / 40 * Math.PI * 4) * 0.08;
+    wavePts.push(new THREE.Vector3(x, 1.05 + y, 0.205));
+  }
+  const waveLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(wavePts),
+    new THREE.LineBasicMaterial({ color })
+  );
+  group.add(waveLine);
+  // Grid on screen
+  const gridMat = new THREE.LineBasicMaterial({ color: 0x1a3a1a, transparent: true, opacity: 0.5 });
+  for (let i = 0; i <= 4; i++) {
+    const y = 0.85 + i * 0.1;
+    const pts = [new THREE.Vector3(-0.27, y, 0.203), new THREE.Vector3(0.27, y, 0.203)];
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gridMat));
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = -0.27 + i * 0.108;
+    const pts = [new THREE.Vector3(x, 0.85, 0.203), new THREE.Vector3(x, 1.25, 0.203)];
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gridMat));
+  }
+  // Knobs
+  for (let i = 0; i < 3; i++) {
+    const knob = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12),
+      new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.6 })
+    );
+    knob.rotation.x = Math.PI / 2;
+    knob.position.set(-0.2 + i * 0.2, 0.75, 0.23);
+    group.add(knob);
+  }
+  // Stand/desk
+  const desk = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.6, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x21262d })
+  );
+  desk.position.y = 0.3;
+  desk.receiveShadow = true;
+  group.add(desk);
+  group.position.set(...pos);
+  return group;
+}
+
+function createRobotArm(pos, color) {
+  const group = new THREE.Group();
+  const armMat = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.5 });
+  const jointMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.7 });
+  // Base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.2, 16), armMat);
+  base.position.y = 0.5;
+  base.castShadow = true;
+  group.add(base);
+  // Joint 1
+  const j1 = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), jointMat);
+  j1.position.y = 0.65;
+  group.add(j1);
+  // Arm segment 1
+  const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.6, 0.1), armMat);
+  seg1.position.set(0, 1.0, 0);
+  seg1.castShadow = true;
+  group.add(seg1);
+  // Joint 2
+  const j2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), jointMat);
+  j2.position.set(0, 1.35, 0);
+  group.add(j2);
+  // Arm segment 2 (angled)
+  const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), armMat);
+  seg2.position.set(0.15, 1.55, 0);
+  seg2.rotation.z = -0.4;
+  seg2.castShadow = true;
+  group.add(seg2);
+  // Joint 3
+  const j3 = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), jointMat);
+  j3.position.set(0.35, 1.7, 0);
+  group.add(j3);
+  // End segment
+  const seg3 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), armMat);
+  seg3.position.set(0.45, 1.6, 0);
+  seg3.rotation.z = 0.6;
+  group.add(seg3);
+  // Gripper
+  for (const z of [-0.04, 0.04]) {
+    const finger = new THREE.Mesh(
+      new THREE.BoxGeometry(0.02, 0.12, 0.02),
+      new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 })
+    );
+    finger.position.set(0.5, 1.42, z);
+    group.add(finger);
+  }
+  // Platform
+  const platform = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16),
+    new THREE.MeshStandardMaterial({ color: 0x21262d })
+  );
+  platform.position.y = 0.2;
+  platform.receiveShadow = true;
+  group.add(platform);
+  group.position.set(...pos);
+  return group;
+}
+
+// Build equipment
+const builders = [createMotor, createPLC, createSensorKit, createOscilloscope, createRobotArm];
+EQUIPMENT.forEach((eq, i) => {
+  const mesh = builders[i](eq.pos, eq.color);
+  mesh.userData = { equipId: eq.id, index: i };
+  equipmentMeshes.push(mesh);
+  scene.add(mesh);
+
+  // Label (simple sprite)
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(22,27,34,0.8)';
+  ctx.roundRect(0, 0, 512, 128, 16);
+  ctx.fill();
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(eq.nameEn, 256, 50);
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '28px sans-serif';
+  ctx.fillText(eq.name, 256, 95);
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.position.set(eq.pos[0], 2.4, eq.pos[2]);
+  sprite.scale.set(2.5, 0.65, 1);
+  labelSprites.push(sprite);
+  scene.add(sprite);
+});
+
+// ===== PLAYER CONTROLS =====
+const keys = {};
+let yaw = 0, pitch = 0;
+let isLocked = false;
+let currentLookAt = null;
+let gazeTimer = 0;
+const GAZE_THRESHOLD = 0.3; // seconds to trigger info
+
+document.addEventListener('keydown', e => { keys[e.code] = true; });
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+renderer.domElement.addEventListener('click', () => {
+  if (!isLocked) renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', () => {
+  isLocked = document.pointerLockElement === renderer.domElement;
+});
+document.addEventListener('mousemove', e => {
+  if (!isLocked) return;
+  yaw -= e.movementX * LOOK_SPEED;
+  pitch -= e.movementY * LOOK_SPEED;
+  pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
+});
+
+// Touch look (drag on left half of screen)
+let touchLookId = null, touchLookStart = { x: 0, y: 0 }, touchYaw = 0, touchPitch = 0;
+renderer.domElement.addEventListener('touchstart', e => {
+  for (const t of e.changedTouches) {
+    if (t.clientX < window.innerWidth * 0.5) {
+      touchLookId = t.identifier;
+      touchLookStart = { x: t.clientX, y: t.clientY };
+      touchYaw = yaw; touchPitch = pitch;
+    }
+  }
+}, { passive: true });
+renderer.domElement.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === touchLookId) {
+      yaw = touchYaw - (t.clientX - touchLookStart.x) * 0.005;
+      pitch = touchPitch - (t.clientY - touchLookStart.y) * 0.005;
+      pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
+    }
+  }
+}, { passive: true });
+renderer.domElement.addEventListener('touchend', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === touchLookId) touchLookId = null;
+  }
+}, { passive: true });
+
+// Mobile joystick
+const joystickZone = document.getElementById('joystick-zone');
+const joystickBase = document.getElementById('joystick-base');
+const joystickThumb = document.getElementById('joystick-thumb');
+let joystickActive = false, joystickTouchId = null;
+let joystickX = 0, joystickY = 0;
+
+joystickBase.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  joystickActive = true;
+  joystickTouchId = t.identifier;
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (!joystickActive) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === joystickTouchId) {
+      const rect = joystickBase.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = t.clientX - cx;
+      let dy = t.clientY - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const maxR = 40;
+      if (dist > maxR) { dx = dx / dist * maxR; dy = dy / dist * maxR; }
+      joystickX = dx / maxR;
+      joystickY = -dy / maxR;
+      joystickThumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    }
+  }
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joystickTouchId) {
+      joystickActive = false;
+      joystickX = 0; joystickY = 0;
+      joystickThumb.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+}, { passive: true });
+
+// ===== RAYCASTER =====
+const raycaster = new THREE.Raycaster();
+const screenCenter = new THREE.Vector2(0, 0);
+
+// ===== MINIMAP =====
+const minimapCanvas = document.getElementById('minimap-canvas');
+const mmCtx = minimapCanvas.getContext('2d');
+
+function drawMinimap() {
+  const w = 160, h = 160;
+  mmCtx.clearRect(0, 0, w, h);
+  mmCtx.fillStyle = 'rgba(13,17,23,0.95)';
+  mmCtx.fillRect(0, 0, w, h);
+
+  // Room outline
+  const scaleX = w / (ROOM_W + 4);
+  const scaleZ = h / (ROOM_D + 4);
+  const ox = w / 2, oz = h / 2;
+
+  mmCtx.strokeStyle = '#30363d';
+  mmCtx.lineWidth = 1;
+  mmCtx.strokeRect(ox - ROOM_W / 2 * scaleX, oz - ROOM_D / 2 * scaleZ, ROOM_W * scaleX, ROOM_D * scaleZ);
+
+  // Equipment dots
+  EQUIPMENT.forEach((eq, i) => {
+    mmCtx.fillStyle = '#' + eq.color.toString(16).padStart(6, '0');
+    const ex = ox + eq.pos[0] * scaleX;
+    const ez = oz + eq.pos[2] * scaleZ;
+    mmCtx.beginPath();
+    mmCtx.arc(ex, ez, 4, 0, Math.PI * 2);
+    mmCtx.fill();
+  });
+
+  // Player
+  const px = ox + camera.position.x * scaleX;
+  const pz = oz + camera.position.z * scaleZ;
+  mmCtx.fillStyle = '#58a6ff';
+  mmCtx.beginPath();
+  mmCtx.arc(px, pz, 4, 0, Math.PI * 2);
+  mmCtx.fill();
+
+  // Player direction
+  const dirX = -Math.sin(yaw);
+  const dirZ = -Math.cos(yaw);
+  mmCtx.strokeStyle = '#58a6ff';
+  mmCtx.lineWidth = 2;
+  mmCtx.beginPath();
+  mmCtx.moveTo(px, pz);
+  mmCtx.lineTo(px + dirX * 12, pz + dirZ * 12);
+  mmCtx.stroke();
+}
+
+// ===== INFO PANEL =====
+const infoPanel = document.getElementById('info-panel');
+let shownEquipId = null;
+
+function showEquipInfo(eq) {
+  if (shownEquipId === eq.id) return;
+  shownEquipId = eq.id;
+  document.getElementById('equip-name').textContent = eq.name;
+  document.getElementById('equip-desc').textContent = eq.desc;
+  const specsEl = document.getElementById('equip-specs');
+  specsEl.innerHTML = '';
+  for (const [k, v] of Object.entries(eq.specs)) {
+    specsEl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+  }
+  document.getElementById('ai-text').textContent = eq.ai;
+  infoPanel.classList.add('open');
+}
+
+function hideEquipInfo() {
+  if (!shownEquipId) return;
+  shownEquipId = null;
+  infoPanel.classList.remove('open');
+}
+
+// ===== MQTT =====
+let mqttClient = null;
+function initMQTT() {
+  try {
+    mqttClient = mqtt.connect(MQTT_BROKER);
+    mqttClient.on('connect', () => {
+      document.getElementById('dot-mqtt').className = 'dot on';
+      document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+    });
+    mqttClient.on('offline', () => {
+      document.getElementById('dot-mqtt').className = 'dot off';
+      document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+    });
+  } catch (e) {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: error';
+  }
+}
+
+let lastMqttPublish = 0;
+function publishPosition() {
+  if (!mqttClient?.connected) return;
+  const now = Date.now();
+  if (now - lastMqttPublish < 1000) return;
+  lastMqttPublish = now;
+  mqttClient.publish('tour/lab/position', JSON.stringify({
+    x: +camera.position.x.toFixed(2),
+    y: +camera.position.y.toFixed(2),
+    z: +camera.position.z.toFixed(2),
+    looking_at: shownEquipId || 'none',
+  }));
+}
+
+// ===== ANIMATION =====
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+
+  // Movement
+  let moveX = 0, moveZ = 0;
+  if (keys['KeyW'] || keys['ArrowUp'] || joystickY > 0.2) moveZ -= 1;
+  if (keys['KeyS'] || keys['ArrowDown'] || joystickY < -0.2) moveZ += 1;
+  if (keys['KeyA'] || keys['ArrowLeft'] || joystickX < -0.2) moveX -= 1;
+  if (keys['KeyD'] || keys['ArrowRight'] || joystickX > 0.2) moveX += 1;
+
+  if (moveX || moveZ) {
+    const speed = MOVE_SPEED * dt;
+    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    camera.position.addScaledVector(forward, moveZ * speed);
+    camera.position.addScaledVector(right, moveX * speed);
+
+    // Clamp to room
+    camera.position.x = Math.max(-ROOM_W / 2 + 0.5, Math.min(ROOM_W / 2 - 0.5, camera.position.x));
+    camera.position.z = Math.max(-ROOM_D / 2 + 0.5, Math.min(ROOM_D / 2 - 0.5, camera.position.z));
+  }
+
+  // Camera rotation
+  const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(euler);
+
+  // Raycasting for gaze
+  raycaster.setFromCamera(screenCenter, camera);
+  const allChildren = [];
+  equipmentMeshes.forEach(g => g.traverse(c => { if (c.isMesh) allChildren.push(c); }));
+  const intersects = raycaster.intersectObjects(allChildren, false);
+
+  let gazedEquip = null;
+  if (intersects.length > 0) {
+    // Walk up to find equipment group
+    let obj = intersects[0].object;
+    while (obj && !obj.userData?.equipId) obj = obj.parent;
+    if (obj?.userData?.equipId) {
+      gazedEquip = EQUIPMENT[obj.userData.index];
+    }
+  }
+
+  const crosshair = document.getElementById('crosshair');
+
+  if (gazedEquip) {
+    if (currentLookAt === gazedEquip.id) {
+      gazeTimer += dt;
+    } else {
+      currentLookAt = gazedEquip.id;
+      gazeTimer = 0;
+    }
+    crosshair.classList.add('active');
+    if (gazeTimer > GAZE_THRESHOLD) {
+      showEquipInfo(gazedEquip);
+    }
+  } else {
+    currentLookAt = null;
+    gazeTimer = 0;
+    crosshair.classList.remove('active');
+    hideEquipInfo();
+  }
+
+  // Equipment glow on gaze
+  equipmentMeshes.forEach((group, i) => {
+    const isGazed = gazedEquip && gazedEquip.id === EQUIPMENT[i].id;
+    group.traverse(child => {
+      if (child.isMesh && child.material?.emissive) {
+        if (isGazed) {
+          child.material.emissiveIntensity = 0.3 + Math.sin(Date.now() * 0.005) * 0.1;
+          child.material.emissive.setHex(EQUIPMENT[i].color);
+        } else {
+          child.material.emissiveIntensity = 0;
+          child.material.emissive.setHex(0x000000);
+        }
+      }
+    });
+  });
+
+  // Labels face camera
+  labelSprites.forEach(s => s.lookAt(camera.position));
+
+  // Minimap
+  drawMinimap();
+
+  // MQTT
+  publishPosition();
+
+  renderer.render(scene, camera);
+}
+
+// ===== RESIZE =====
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Fade instructions after 8s
+setTimeout(() => {
+  const inst = document.getElementById('instructions');
+  if (inst) inst.style.opacity = '0';
+  setTimeout(() => { if (inst) inst.style.display = 'none'; }, 500);
+}, 8000);
+
+// ===== INIT =====
+initMQTT();
+animate();
+</script>
+</body>
+</html>

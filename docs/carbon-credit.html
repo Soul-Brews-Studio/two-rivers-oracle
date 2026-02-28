@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carbon Credit Wallet — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; min-height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  /* Controls */
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  select, input[type="number"], input[type="text"] {
+    width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+  select option { background: #0d1117; }
+
+  /* Status */
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  /* Wallet card */
+  .wallet-card {
+    background: linear-gradient(135deg, #1a3a2a, #0d2818);
+    border: 1px solid #3fb950; border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .wallet-addr { font-family: monospace; font-size: 0.75rem; color: #8b949e; word-break: break-all; }
+  .wallet-balance { font-size: 2rem; font-weight: 700; color: #3fb950; margin: 8px 0 4px; }
+  .wallet-label { font-size: 0.7rem; color: #8b949e; }
+  .green-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 12px;
+    font-size: 0.7rem; font-weight: 600; margin-top: 8px;
+  }
+  .green-badge.bronze { background: #92400e33; color: #fbbf24; border: 1px solid #92400e; }
+  .green-badge.silver { background: #6b728033; color: #d1d5db; border: 1px solid #6b7280; }
+  .green-badge.gold { background: #92400e33; color: #f59e0b; border: 1px solid #f59e0b; }
+  .green-badge.platinum { background: #3fb95033; color: #3fb950; border: 1px solid #3fb950; }
+
+  /* Submit button */
+  .submit-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    background: #3fb950; color: #0d1117; transition: background 0.2s;
+  }
+  .submit-btn:hover { background: #56d364; }
+  .submit-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+  /* Verify animation */
+  .verify-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(13,17,23,0.85); z-index: 200; justify-content: center; align-items: center;
+    flex-direction: column;
+  }
+  .verify-overlay.show { display: flex; }
+  .verify-spinner {
+    width: 60px; height: 60px; border: 3px solid #30363d; border-top: 3px solid #3fb950;
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .verify-text { color: #3fb950; font-size: 1.1rem; font-weight: 600; }
+
+  /* NFT gallery */
+  .nft-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
+  .nft-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center; transition: all 0.3s;
+  }
+  .nft-card.new { border-color: #3fb950; box-shadow: 0 0 12px rgba(63,185,80,0.3); }
+  .nft-icon { font-size: 1.8rem; margin-bottom: 4px; }
+  .nft-label { font-size: 0.65rem; color: #8b949e; }
+  .nft-credits { font-size: 0.7rem; color: #3fb950; font-weight: 600; }
+
+  /* Viz container */
+  .viz-wrap {
+    display: flex; justify-content: center; margin-bottom: 12px;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 0;
+  }
+  .viz-wrap canvas { display: block; }
+
+  /* Chart */
+  .chart-wrap { position: relative; height: 180px; margin-bottom: 12px; }
+
+  /* Stats */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+  .stat-card.purple .num { color: #bc8cff; }
+  .stat-card.cyan .num { color: #39d5ff; }
+
+  /* Feed */
+  .feed { max-height: 200px; overflow-y: auto; font-size: 0.7rem; font-family: monospace; }
+  .feed-entry { padding: 3px 6px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; }
+  .feed-entry .ts { color: #484f58; flex-shrink: 0; }
+  .feed-entry .act { color: #3fb950; min-width: 80px; }
+  .feed-entry .hash { color: #58a6ff; font-size: 0.65rem; }
+  .feed-entry.mint { background: rgba(63,185,80,0.06); }
+
+  /* Header bar */
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #3fb950, #58a6ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>Carbon Credit Wallet</h1>
+    <span class="sub">Blockchain NFT — JIB Chain</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="arena.html">Arena</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Wallet + Activity Form -->
+  <div class="panel">
+    <h2>Wallet</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <div class="wallet-card">
+      <div class="wallet-label">JIB Chain Address</div>
+      <div class="wallet-addr" id="wallet-addr">0x7a3B...4f2E</div>
+      <div class="wallet-balance" id="wallet-balance">0.00</div>
+      <div class="wallet-label">Carbon Credits (tCO2e)</div>
+      <div id="badge-container"><span class="green-badge bronze" id="green-badge">Bronze Eco</span></div>
+    </div>
+
+    <h3>Submit Activity / บันทึกกิจกรรม</h3>
+    <label class="ctrl">Activity / กิจกรรม</label>
+    <select id="sel-activity">
+      <option value="cycling">ปั่นจักรยาน</option>
+      <option value="tree">ปลูกต้นไม้</option>
+      <option value="recycle">แยกขยะ</option>
+      <option value="walk">เดินแทนขับรถ</option>
+      <option value="bus">ใช้รถสาธารณะ</option>
+      <option value="solar">ใช้พลังงานแสงอาทิตย์</option>
+    </select>
+
+    <label class="ctrl">Distance / Amount</label>
+    <input type="number" id="inp-amount" value="5" min="1" max="100" step="0.5">
+
+    <label class="ctrl">Unit</label>
+    <select id="sel-unit">
+      <option value="km">กิโลเมตร</option>
+      <option value="trees">ต้น</option>
+      <option value="kg">กิโลกรัม</option>
+      <option value="hours">ชั่วโมง</option>
+    </select>
+
+    <button class="submit-btn" id="btn-submit" onclick="submitActivity()">Submit & Verify</button>
+
+    <h3>NFT Gallery / เหรียญสะสม</h3>
+    <div class="nft-grid" id="nft-gallery"></div>
+  </div>
+
+  <!-- CENTER: Blockchain Viz + Chart -->
+  <div class="panel">
+    <h2>Blockchain Visualization — JIB Chain</h2>
+    <div class="viz-wrap"><div id="viz-container"></div></div>
+
+    <h2>Credit Accumulation / สะสมคะแนน</h2>
+    <div class="chart-wrap"><canvas id="chart-credits"></canvas></div>
+
+    <h3>Transaction Feed</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- RIGHT: Stats + Transaction History -->
+  <div class="panel">
+    <h2>Stats / สถิติ</h2>
+    <div class="stat-grid">
+      <div class="stat-card green"><div class="num" id="s-credits">0.00</div><div class="lbl">Total Credits</div></div>
+      <div class="stat-card purple"><div class="num" id="s-nfts">0</div><div class="lbl">NFTs Earned</div></div>
+      <div class="stat-card cyan"><div class="num" id="s-co2">0.0</div><div class="lbl">CO2 Reduced (kg)</div></div>
+      <div class="stat-card green"><div class="num" id="s-trees">0</div><div class="lbl">Trees Equivalent</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-rank">#--</div><div class="lbl">Rank</div></div>
+      <div class="stat-card blue"><div class="num" id="s-streak">0</div><div class="lbl">Streak Days</div></div>
+    </div>
+
+    <h3>Activity Breakdown</h3>
+    <div class="chart-wrap" style="height:160px;"><canvas id="chart-breakdown"></canvas></div>
+
+    <h3>Recent Transactions</h3>
+    <div class="feed" id="tx-feed"></div>
+  </div>
+</div>
+
+<!-- Verify Overlay -->
+<div class="verify-overlay" id="verify-overlay">
+  <div class="verify-spinner"></div>
+  <div class="verify-text" id="verify-text">AI Verifying Activity...</div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const ACTIVITY_CONFIG = {
+  cycling:  { icon: '\u{1F6B2}', label: 'ปั่นจักรยาน', creditPer: 0.12, co2Per: 0.21, unit: 'km' },
+  tree:     { icon: '\u{1F333}', label: 'ปลูกต้นไม้', creditPer: 2.5, co2Per: 21.7, unit: 'trees' },
+  recycle:  { icon: '\u267B\uFE0F', label: 'แยกขยะ', creditPer: 0.05, co2Per: 0.15, unit: 'kg' },
+  walk:     { icon: '\u{1F6B6}', label: 'เดินแทนขับรถ', creditPer: 0.08, co2Per: 0.14, unit: 'km' },
+  bus:      { icon: '\u{1F68C}', label: 'ใช้รถสาธารณะ', creditPer: 0.06, co2Per: 0.11, unit: 'km' },
+  solar:    { icon: '\u2600\uFE0F', label: 'พลังงานแสงอาทิตย์', creditPer: 0.4, co2Per: 0.85, unit: 'hours' },
+};
+const BADGE_LEVELS = [
+  { min: 0, cls: 'bronze', label: 'Bronze Eco' },
+  { min: 5, cls: 'silver', label: 'Silver Eco' },
+  { min: 20, cls: 'gold', label: 'Gold Eco' },
+  { min: 50, cls: 'platinum', label: 'Platinum Eco' },
+];
+
+// ===== STATE =====
+let mqttClient = null;
+let walletAddr = '0x' + Array.from({length:40}, () => '0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+let totalCredits = 0;
+let totalCO2 = 0;
+let nftCount = 0;
+let streakDays = 1;
+let blockNumber = 1000 + Math.floor(Math.random() * 9000);
+let blocks = [];
+let nfts = [];
+let activityCounts = { cycling: 0, tree: 0, recycle: 0, walk: 0, bus: 0, solar: 0 };
+let creditHistory = [];
+let verifying = false;
+
+// Display shortened wallet address
+document.getElementById('wallet-addr').textContent = walletAddr.slice(0, 6) + '...' + walletAddr.slice(-4);
+
+// ===== BLOCKCHAIN BLOCKS (p5.js) =====
+// Generate initial blocks
+for (let i = 0; i < 5; i++) {
+  blocks.push({
+    hash: '0x' + Array.from({length:8}, () => '0123456789abcdef'[Math.floor(Math.random()*16)]).join(''),
+    number: blockNumber - 5 + i,
+    activity: Object.keys(ACTIVITY_CONFIG)[Math.floor(Math.random() * 6)],
+    credits: +(Math.random() * 3).toFixed(2),
+    ts: Date.now() - (5 - i) * 60000,
+    animProgress: 1,
+  });
+}
+
+const vizSketch = new p5(function(p) {
+  const W = 600, H = 280;
+  let scrollOffset = 0;
+
+  p.setup = function() {
+    p.createCanvas(W, H);
+    p.textFont('monospace');
+    p.frameRate(30);
+  };
+
+  p.draw = function() {
+    p.clear();
+    p.background(13, 17, 23);
+
+    const blockW = 110, blockH = 160, gap = 40;
+    const totalW = blocks.length * (blockW + gap);
+    // Auto-scroll to show latest
+    const targetScroll = Math.max(0, totalW - W + 60);
+    scrollOffset += (targetScroll - scrollOffset) * 0.08;
+
+    const time = p.millis() / 1000;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const x = 30 + i * (blockW + gap) - scrollOffset;
+      const y = 50;
+
+      if (x < -blockW - 20 || x > W + 20) continue;
+
+      // Animate new blocks
+      if (b.animProgress < 1) {
+        b.animProgress = Math.min(1, b.animProgress + 0.03);
+      }
+      const ap = b.animProgress;
+      const scale = 0.5 + ap * 0.5;
+      const alpha = ap * 255;
+
+      p.push();
+      p.translate(x + blockW / 2, y + blockH / 2);
+      p.scale(scale);
+      p.translate(-blockW / 2, -blockH / 2);
+
+      // Block body
+      const glowIntensity = ap < 1 ? Math.sin(time * 4) * 30 + 30 : 0;
+      p.stroke(63, 185, 80, alpha * 0.6 + glowIntensity);
+      p.strokeWeight(ap < 1 ? 2 : 1);
+      p.fill(22, 27, 34, alpha);
+      p.rect(0, 0, blockW, blockH, 8);
+
+      // Block header
+      p.noStroke();
+      p.fill(63, 185, 80, alpha * 0.15);
+      p.rect(0, 0, blockW, 30, 8, 8, 0, 0);
+
+      // Block number
+      p.fill(63, 185, 80, alpha);
+      p.textSize(10);
+      p.textAlign(p.LEFT, p.CENTER);
+      p.text('#' + b.number, 8, 15);
+
+      // Icon
+      const cfg = ACTIVITY_CONFIG[b.activity];
+      p.textSize(24);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.text(cfg.icon, blockW / 2, 55);
+
+      // Activity label
+      p.fill(230, 237, 243, alpha);
+      p.textSize(9);
+      p.text(cfg.label, blockW / 2, 78);
+
+      // Hash
+      p.fill(88, 166, 255, alpha * 0.7);
+      p.textSize(8);
+      p.text(b.hash, blockW / 2, 98);
+
+      // Credits
+      p.fill(63, 185, 80, alpha);
+      p.textSize(14);
+      p.textStyle(p.BOLD);
+      p.text('+' + b.credits.toFixed(2), blockW / 2, 120);
+      p.textStyle(p.NORMAL);
+
+      // Timestamp
+      p.fill(139, 148, 158, alpha * 0.7);
+      p.textSize(7);
+      const d = new Date(b.ts);
+      p.text(d.toLocaleTimeString('th-TH', { hour12: false }), blockW / 2, 145);
+
+      p.pop();
+
+      // Chain connection line
+      if (i > 0) {
+        const prevX = 30 + (i - 1) * (blockW + gap) - scrollOffset + blockW;
+        const lineAlpha = Math.min(blocks[i-1].animProgress, ap) * 200;
+        p.stroke(63, 185, 80, lineAlpha * 0.5);
+        p.strokeWeight(2);
+        const ly = y + blockH / 2;
+        // Animated dashes
+        const dashLen = 6, dashGap = 4;
+        const lineStart = prevX + 2;
+        const lineEnd = x - 2;
+        for (let dx = lineStart; dx < lineEnd; dx += dashLen + dashGap) {
+          const de = Math.min(dx + dashLen, lineEnd);
+          p.line(dx, ly, de, ly);
+        }
+        // Arrow
+        p.fill(63, 185, 80, lineAlpha * 0.5);
+        p.noStroke();
+        p.triangle(x - 2, ly - 5, x - 2, ly + 5, x + 4, ly);
+      }
+    }
+
+    // Title
+    p.noStroke();
+    p.fill(139, 148, 158);
+    p.textSize(10);
+    p.textAlign(p.LEFT, p.TOP);
+    p.text('JIB Chain  |  Block #' + (blocks.length > 0 ? blocks[blocks.length-1].number : '---'), 10, 10);
+
+    // Particle effects for new blocks
+    for (const b of blocks) {
+      if (b.animProgress < 1) {
+        const idx = blocks.indexOf(b);
+        const bx = 30 + idx * (blockW + gap) - scrollOffset + blockW / 2;
+        const by = 50 + blockH / 2;
+        for (let j = 0; j < 5; j++) {
+          const angle = time * 3 + j * 1.257;
+          const dist = 60 + Math.sin(time * 2 + j) * 20;
+          const px = bx + Math.cos(angle) * dist;
+          const py = by + Math.sin(angle) * dist;
+          p.fill(63, 185, 80, (1 - b.animProgress) * 120);
+          p.noStroke();
+          p.circle(px, py, 3);
+        }
+      }
+    }
+  };
+}, document.getElementById('viz-container'));
+
+// ===== CHART: Credit Accumulation =====
+const creditChart = new Chart(document.getElementById('chart-credits').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Credits (tCO2e)',
+      data: [],
+      borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.1)',
+      fill: true, pointRadius: 3, borderWidth: 2, tension: 0.3,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 300 },
+    plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 } } } },
+    scales: {
+      x: { display: false },
+      y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 } } },
+    },
+  },
+});
+
+// ===== CHART: Activity Breakdown =====
+const breakdownChart = new Chart(document.getElementById('chart-breakdown').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.values(ACTIVITY_CONFIG).map(c => c.label),
+    datasets: [{
+      data: [0, 0, 0, 0, 0, 0],
+      backgroundColor: ['#58a6ff99', '#3fb95099', '#fbbf2499', '#f8717199', '#bc8cff99', '#f0883e99'],
+      borderColor: ['#58a6ff', '#3fb950', '#fbbf24', '#f87171', '#bc8cff', '#f0883e'],
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#8b949e', font: { size: 9 }, boxWidth: 10 }, position: 'bottom' } },
+  },
+});
+
+// ===== SUBMIT ACTIVITY =====
+window.submitActivity = function() {
+  if (verifying) return;
+  verifying = true;
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+
+  const activity = document.getElementById('sel-activity').value;
+  const amount = parseFloat(document.getElementById('inp-amount').value) || 1;
+  const cfg = ACTIVITY_CONFIG[activity];
+
+  // Show verification overlay
+  const overlay = document.getElementById('verify-overlay');
+  const vText = document.getElementById('verify-text');
+  overlay.classList.add('show');
+  vText.textContent = 'AI Verifying: ' + cfg.label + '...';
+
+  setTimeout(() => {
+    vText.textContent = 'Checking blockchain...';
+  }, 700);
+
+  setTimeout(() => {
+    vText.textContent = 'Minting NFT Badge...';
+  }, 1400);
+
+  setTimeout(() => {
+    vText.textContent = 'Confirmed! +' + (cfg.creditPer * amount).toFixed(2) + ' credits';
+    vText.style.fontSize = '1.3rem';
+
+    setTimeout(() => {
+      overlay.classList.remove('show');
+      vText.style.fontSize = '';
+      verifying = false;
+      btn.disabled = false;
+      processActivity(activity, amount);
+    }, 800);
+  }, 2000);
+};
+
+function processActivity(activity, amount) {
+  const cfg = ACTIVITY_CONFIG[activity];
+  const credits = +(cfg.creditPer * amount).toFixed(2);
+  const co2 = +(cfg.co2Per * amount).toFixed(1);
+
+  totalCredits += credits;
+  totalCO2 += co2;
+  nftCount++;
+  activityCounts[activity]++;
+  streakDays = Math.min(streakDays + 1, 99);
+
+  // Add block
+  blockNumber++;
+  const newBlock = {
+    hash: '0x' + Array.from({length:8}, () => '0123456789abcdef'[Math.floor(Math.random()*16)]).join(''),
+    number: blockNumber,
+    activity,
+    credits,
+    ts: Date.now(),
+    animProgress: 0,
+  };
+  blocks.push(newBlock);
+  if (blocks.length > 12) blocks.shift();
+
+  // Add NFT
+  const nft = { activity, icon: cfg.icon, label: cfg.label, credits, isNew: true };
+  nfts.unshift(nft);
+  setTimeout(() => { nft.isNew = false; renderNFTs(); }, 3000);
+  renderNFTs();
+
+  // Update credit chart
+  const now = new Date().toLocaleTimeString('th-TH', { hour12: false });
+  creditHistory.push(totalCredits);
+  creditChart.data.labels.push(now);
+  creditChart.data.datasets[0].data.push(totalCredits);
+  if (creditChart.data.labels.length > 30) {
+    creditChart.data.labels.shift();
+    creditChart.data.datasets[0].data.shift();
+  }
+  creditChart.update();
+
+  // Update breakdown chart
+  breakdownChart.data.datasets[0].data = Object.keys(activityCounts).map(k => activityCounts[k]);
+  breakdownChart.update();
+
+  // Update stats
+  updateStats();
+
+  // Feed entries
+  addFeedEntry(now, cfg.label, credits, newBlock.hash);
+  addTxEntry(now, activity, credits, newBlock.hash, newBlock.number);
+
+  // MQTT
+  publishMint(activity, credits, nftCount, newBlock.hash);
+}
+
+// ===== NFT GALLERY =====
+function renderNFTs() {
+  const gallery = document.getElementById('nft-gallery');
+  gallery.innerHTML = '';
+  nfts.slice(0, 9).forEach(nft => {
+    const card = document.createElement('div');
+    card.className = 'nft-card' + (nft.isNew ? ' new' : '');
+    card.innerHTML = '<div class="nft-icon">' + nft.icon + '</div><div class="nft-label">' + nft.label + '</div><div class="nft-credits">+' + nft.credits.toFixed(2) + '</div>';
+    gallery.appendChild(card);
+  });
+}
+
+// ===== UPDATE STATS =====
+function updateStats() {
+  document.getElementById('wallet-balance').textContent = totalCredits.toFixed(2);
+  document.getElementById('s-credits').textContent = totalCredits.toFixed(2);
+  document.getElementById('s-nfts').textContent = nftCount;
+  document.getElementById('s-co2').textContent = totalCO2.toFixed(1);
+  document.getElementById('s-trees').textContent = Math.round(totalCO2 / 21.7);
+  document.getElementById('s-streak').textContent = streakDays;
+
+  // Rank based on credits
+  const rank = totalCredits < 5 ? Math.max(1, 50 - Math.floor(totalCredits * 5)) : Math.max(1, 25 - Math.floor(totalCredits));
+  document.getElementById('s-rank').textContent = '#' + rank;
+
+  // Badge level
+  let badge = BADGE_LEVELS[0];
+  for (const b of BADGE_LEVELS) {
+    if (totalCredits >= b.min) badge = b;
+  }
+  const badgeEl = document.getElementById('green-badge');
+  badgeEl.className = 'green-badge ' + badge.cls;
+  badgeEl.textContent = badge.label;
+}
+
+// ===== FEED =====
+function addFeedEntry(time, act, credits, hash) {
+  const feed = document.getElementById('feed');
+  const el = document.createElement('div');
+  el.className = 'feed-entry mint';
+  el.innerHTML = '<span class="ts">' + time + '</span><span class="act">' + act + '</span><span class="hash">+' + credits.toFixed(2) + '  ' + hash.slice(0, 10) + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > 20) feed.lastChild.remove();
+}
+
+function addTxEntry(time, activity, credits, hash, blockNum) {
+  const feed = document.getElementById('tx-feed');
+  const cfg = ACTIVITY_CONFIG[activity];
+  const el = document.createElement('div');
+  el.className = 'feed-entry mint';
+  el.innerHTML = '<span class="ts">' + time + '</span><span class="act">' + cfg.icon + ' +' + credits.toFixed(2) + '</span><span class="hash">Block #' + blockNum + ' ' + hash.slice(0, 10) + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > 30) feed.lastChild.remove();
+}
+
+// ===== MQTT =====
+function publishMint(activity, credits, nftId, blockHash) {
+  if (mqttClient?.connected) {
+    mqttClient.publish('carbon/' + walletAddr.slice(0, 10) + '/mint', JSON.stringify({
+      activity,
+      credits,
+      nft_id: nftId,
+      block_hash: blockHash,
+      ts: Date.now()
+    }));
+  }
+}
+
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+    mqttClient.subscribe('carbon/#');
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== DYNAMIC UNIT =====
+document.getElementById('sel-activity').addEventListener('change', function() {
+  const cfg = ACTIVITY_CONFIG[this.value];
+  const unitSel = document.getElementById('sel-unit');
+  const unitMap = { km: 'กิโลเมตร', trees: 'ต้น', kg: 'กิโลกรัม', hours: 'ชั่วโมง' };
+  unitSel.value = cfg.unit;
+});
+
+// ===== INIT =====
+initMQTT();
+updateStats();
+renderNFTs();
+
+// Seed initial transactions in the feed
+const seedActivities = ['cycling', 'tree', 'recycle', 'walk', 'cycling', 'bus'];
+for (let i = 0; i < 3; i++) {
+  const act = seedActivities[i];
+  const cfg = ACTIVITY_CONFIG[act];
+  const credits = +(cfg.creditPer * (2 + Math.random() * 8)).toFixed(2);
+  const hash = '0x' + Array.from({length:8}, () => '0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+  const t = new Date(Date.now() - (3 - i) * 120000).toLocaleTimeString('th-TH', { hour12: false });
+  addTxEntry(t, act, credits, hash, blockNumber - 3 + i);
+}
+</script>
+</body>
+</html>

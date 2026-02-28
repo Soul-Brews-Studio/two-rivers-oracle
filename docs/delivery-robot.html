@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delivery Robot Simulator — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  select, input[type="text"] {
+    width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+  select option { background: #0d1117; }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+
+  .feed { max-height: 200px; overflow-y: auto; font-size: 0.7rem; font-family: monospace; }
+  .feed-entry { padding: 3px 6px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; }
+  .feed-entry .ts { color: #484f58; flex-shrink: 0; }
+  .feed-entry .msg { color: #58a6ff; }
+  .feed-entry.delivered { background: rgba(63,185,80,0.08); }
+  .feed-entry.delivered .msg { color: #3fb950; }
+  .feed-entry.obstacle { background: rgba(248,113,113,0.08); }
+  .feed-entry.obstacle .msg { color: #f87171; }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+
+  #map { width: 100%; height: 100%; min-height: 400px; border-radius: 8px; }
+
+  .gauge-row { display: flex; gap: 8px; margin: 8px 0; }
+  .gauge {
+    flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px; text-align: center;
+  }
+  .gauge .bar-bg { width: 100%; height: 8px; background: #21262d; border-radius: 4px; margin-top: 4px; }
+  .gauge .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .gauge .val { font-size: 1rem; font-weight: 700; }
+  .gauge .lbl { font-size: 0.6rem; color: #8b949e; }
+
+  .pkg-types { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0; }
+  .pkg-btn {
+    padding: 6px 4px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .pkg-btn:hover { border-color: #58a6ff; }
+  .pkg-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+
+  .qr-overlay {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(13,17,23,0.92); border: 2px solid #3fb950; border-radius: 12px;
+    padding: 24px; text-align: center; z-index: 1000; display: none;
+  }
+  .qr-overlay .check { font-size: 3rem; color: #3fb950; }
+  .qr-overlay .qr-text { color: #e6edf3; font-size: 0.85rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="header">
+    <h1>Delivery Robot Simulator</h1>
+    <span class="sub">หุ่นยนต์ส่งของอัตโนมัติ — PSRU Campus</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Order Form + Robot Status -->
+  <div class="panel" id="controls-panel">
+    <h2>Order Form</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">ต้นทาง (Sender)</label>
+    <select id="sel-from">
+      <option value="it">อาคาร IT</option>
+      <option value="eng">อาคารวิศวะ</option>
+      <option value="lib">ห้องสมุด</option>
+      <option value="canteen">โรงอาหาร</option>
+      <option value="dorm">หอพัก</option>
+    </select>
+
+    <label class="ctrl">ปลายทาง (Recipient)</label>
+    <select id="sel-to">
+      <option value="canteen">โรงอาหาร</option>
+      <option value="it">อาคาร IT</option>
+      <option value="eng">อาคารวิศวะ</option>
+      <option value="lib">ห้องสมุด</option>
+      <option value="dorm">หอพัก</option>
+    </select>
+
+    <label class="ctrl">ประเภทพัสดุ</label>
+    <div class="pkg-types" id="pkg-types">
+      <button class="pkg-btn active" data-type="document">เอกสาร</button>
+      <button class="pkg-btn" data-type="food">อาหาร</button>
+      <button class="pkg-btn" data-type="parcel">พัสดุ</button>
+      <button class="pkg-btn" data-type="equipment">อุปกรณ์</button>
+    </div>
+
+    <button class="start-btn off" id="btn-send" onclick="sendRobot()">Send Robot</button>
+
+    <h3>Robot Status</h3>
+    <div class="gauge-row">
+      <div class="gauge">
+        <div class="val" id="g-speed">0</div>
+        <div class="lbl">km/h</div>
+        <div class="bar-bg"><div class="bar-fill" id="bar-speed" style="width:0%; background:#58a6ff;"></div></div>
+      </div>
+      <div class="gauge">
+        <div class="val" id="g-battery">100%</div>
+        <div class="lbl">Battery</div>
+        <div class="bar-bg"><div class="bar-fill" id="bar-battery" style="width:100%; background:#3fb950;"></div></div>
+      </div>
+    </div>
+
+    <div class="status-row"><span id="robot-status" style="color:#8b949e;">Idle — waiting for order</span></div>
+  </div>
+
+  <!-- CENTER: Map -->
+  <div class="panel" style="padding:8px; position:relative;">
+    <div id="map"></div>
+    <div class="qr-overlay" id="qr-overlay">
+      <div class="check">&#10003;</div>
+      <div class="qr-text">QR Verified — พัสดุส่งสำเร็จ!</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Delivery Log + Stats -->
+  <div class="panel">
+    <h2>Delivery Stats</h2>
+    <div class="stat-grid">
+      <div class="stat-card green"><div class="num" id="s-completed">0</div><div class="lbl">Completed</div></div>
+      <div class="stat-card blue"><div class="num" id="s-transit">0</div><div class="lbl">In Transit</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-avgtime">0s</div><div class="lbl">Avg Time</div></div>
+      <div class="stat-card green"><div class="num" id="s-battery">100%</div><div class="lbl">Battery</div></div>
+      <div class="stat-card red"><div class="num" id="s-obstacles">0</div><div class="lbl">Obstacles Avoided</div></div>
+      <div class="stat-card blue"><div class="num" id="s-distance">0m</div><div class="lbl">Distance</div></div>
+    </div>
+
+    <h3>Delivery Log</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const CENTER = [16.8211, 100.2659];
+
+// Campus buildings with coordinates
+const BUILDINGS = {
+  it:      { name: 'อาคาร IT',    lat: 16.8225, lng: 100.2645 },
+  eng:     { name: 'อาคารวิศวะ',  lat: 16.8205, lng: 100.2635 },
+  lib:     { name: 'ห้องสมุด',    lat: 16.8215, lng: 100.2670 },
+  canteen: { name: 'โรงอาหาร',   lat: 16.8198, lng: 100.2660 },
+  dorm:    { name: 'หอพัก',       lat: 16.8230, lng: 100.2680 },
+};
+
+// Waypoint routes between buildings (with intermediate path points)
+const ROUTES = {
+  'it-eng':      [[16.8225,100.2645],[16.8220,100.2643],[16.8215,100.2640],[16.8210,100.2637],[16.8205,100.2635]],
+  'it-lib':      [[16.8225,100.2645],[16.8223,100.2650],[16.8220,100.2655],[16.8218,100.2662],[16.8215,100.2670]],
+  'it-canteen':  [[16.8225,100.2645],[16.8220,100.2648],[16.8215,100.2652],[16.8208,100.2656],[16.8198,100.2660]],
+  'it-dorm':     [[16.8225,100.2645],[16.8226,100.2655],[16.8228,100.2665],[16.8229,100.2672],[16.8230,100.2680]],
+  'eng-it':      [[16.8205,100.2635],[16.8210,100.2637],[16.8215,100.2640],[16.8220,100.2643],[16.8225,100.2645]],
+  'eng-lib':     [[16.8205,100.2635],[16.8208,100.2642],[16.8210,100.2650],[16.8212,100.2660],[16.8215,100.2670]],
+  'eng-canteen': [[16.8205,100.2635],[16.8203,100.2642],[16.8200,100.2650],[16.8198,100.2660]],
+  'eng-dorm':    [[16.8205,100.2635],[16.8210,100.2645],[16.8218,100.2658],[16.8225,100.2670],[16.8230,100.2680]],
+  'lib-it':      [[16.8215,100.2670],[16.8218,100.2662],[16.8220,100.2655],[16.8223,100.2650],[16.8225,100.2645]],
+  'lib-eng':     [[16.8215,100.2670],[16.8212,100.2660],[16.8210,100.2650],[16.8208,100.2642],[16.8205,100.2635]],
+  'lib-canteen': [[16.8215,100.2670],[16.8212,100.2668],[16.8208,100.2665],[16.8202,100.2662],[16.8198,100.2660]],
+  'lib-dorm':    [[16.8215,100.2670],[16.8218,100.2672],[16.8222,100.2675],[16.8226,100.2678],[16.8230,100.2680]],
+  'canteen-it':  [[16.8198,100.2660],[16.8208,100.2656],[16.8215,100.2652],[16.8220,100.2648],[16.8225,100.2645]],
+  'canteen-eng': [[16.8198,100.2660],[16.8200,100.2650],[16.8203,100.2642],[16.8205,100.2635]],
+  'canteen-lib': [[16.8198,100.2660],[16.8202,100.2662],[16.8208,100.2665],[16.8212,100.2668],[16.8215,100.2670]],
+  'canteen-dorm':[[16.8198,100.2660],[16.8205,100.2665],[16.8215,100.2672],[16.8225,100.2678],[16.8230,100.2680]],
+  'dorm-it':     [[16.8230,100.2680],[16.8229,100.2672],[16.8228,100.2665],[16.8226,100.2655],[16.8225,100.2645]],
+  'dorm-eng':    [[16.8230,100.2680],[16.8225,100.2670],[16.8218,100.2658],[16.8210,100.2645],[16.8205,100.2635]],
+  'dorm-lib':    [[16.8230,100.2680],[16.8226,100.2678],[16.8222,100.2675],[16.8218,100.2672],[16.8215,100.2670]],
+  'dorm-canteen':[[16.8230,100.2680],[16.8225,100.2678],[16.8215,100.2672],[16.8205,100.2665],[16.8198,100.2660]],
+};
+
+// Obstacles on campus
+const OBSTACLES = [
+  { lat: 16.8212, lng: 100.2648, label: 'ต้นไม้ล้ม' },
+  { lat: 16.8218, lng: 100.2658, label: 'รถจอดขวาง' },
+  { lat: 16.8202, lng: 100.2655, label: 'หลุมบนถนน' },
+  { lat: 16.8222, lng: 100.2672, label: 'ก่อสร้าง' },
+  { lat: 16.8208, lng: 100.2642, label: 'แอ่งน้ำ' },
+];
+
+// ===== STATE =====
+let mqttClient = null;
+let robotMoving = false;
+let currentRoute = [];
+let waypointIndex = 0;
+let moveTimer = null;
+let battery = 100;
+let totalDistance = 0;
+let deliveryCount = 0;
+let obstaclesAvoided = 0;
+let inTransit = 0;
+let deliveryTimes = [];
+let deliveryId = 0;
+let deliveryStartTime = 0;
+let packageType = 'document';
+let robotMarker = null;
+let pathLine = null;
+let travelledLine = null;
+
+// ===== MAP SETUP =====
+const map = L.map('map', { zoomControl: false }).setView(CENTER, 17);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  maxZoom: 19,
+}).addTo(map);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// Building markers
+for (const [key, b] of Object.entries(BUILDINGS)) {
+  const icon = L.divIcon({
+    className: '',
+    html: '<div style="background:#1f3a5f;border:2px solid #58a6ff;border-radius:8px;padding:4px 8px;color:#58a6ff;font-size:11px;white-space:nowrap;font-family:-apple-system,sans-serif;text-align:center;">' + b.name + '</div>',
+    iconSize: [0, 0],
+    iconAnchor: [-8, 12],
+  });
+  L.marker([b.lat, b.lng], { icon }).addTo(map);
+  L.circleMarker([b.lat, b.lng], { radius: 6, color: '#58a6ff', fillColor: '#1f3a5f', fillOpacity: 0.8, weight: 2 }).addTo(map);
+}
+
+// Obstacle markers
+const obstacleMarkers = OBSTACLES.map(o => {
+  const circle = L.circleMarker([o.lat, o.lng], {
+    radius: 10, color: '#f87171', fillColor: '#f87171', fillOpacity: 0.25, weight: 2,
+    dashArray: '4 4',
+  }).addTo(map);
+  circle.bindTooltip(o.label, { className: '', direction: 'top', offset: [0, -10] });
+  return circle;
+});
+
+// Robot icon
+const robotIcon = L.divIcon({
+  className: '',
+  html: '<div id="robot-icon" style="width:20px;height:20px;background:#3fb950;border:2px solid #0d1117;border-radius:50%;box-shadow:0 0 8px #3fb950;display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #0d1117;"></div></div>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+robotMarker = L.marker(CENTER, { icon: robotIcon, zIndexOffset: 1000 }).addTo(map);
+
+// ===== PACKAGE TYPE BUTTONS =====
+document.getElementById('pkg-types').addEventListener('click', e => {
+  const btn = e.target.closest('.pkg-btn');
+  if (!btn) return;
+  document.querySelectorAll('.pkg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  packageType = btn.dataset.type;
+});
+
+// ===== INTERPOLATE ROUTE WITH MORE POINTS =====
+function interpolateRoute(waypoints) {
+  const result = [];
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const [lat1, lng1] = waypoints[i];
+    const [lat2, lng2] = waypoints[i + 1];
+    const steps = 15;
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      result.push([lat1 + (lat2 - lat1) * t, lng1 + (lng2 - lng1) * t]);
+    }
+  }
+  result.push(waypoints[waypoints.length - 1]);
+  return result;
+}
+
+// ===== CALCULATE DISTANCE =====
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ===== CHECK OBSTACLE PROXIMITY =====
+function checkObstacles(lat, lng) {
+  for (const o of OBSTACLES) {
+    const dist = haversine(lat, lng, o.lat, o.lng);
+    if (dist < 30) {
+      return o;
+    }
+  }
+  return null;
+}
+
+// ===== SEND ROBOT =====
+window.sendRobot = function() {
+  if (robotMoving) return;
+
+  const from = document.getElementById('sel-from').value;
+  const to = document.getElementById('sel-to').value;
+  if (from === to) {
+    addLog('ต้นทางและปลายทางเหมือนกัน!', 'obstacle');
+    return;
+  }
+
+  const routeKey = from + '-' + to;
+  const waypoints = ROUTES[routeKey];
+  if (!waypoints) {
+    addLog('ไม่พบเส้นทาง', 'obstacle');
+    return;
+  }
+
+  deliveryId++;
+  deliveryStartTime = Date.now();
+  robotMoving = true;
+  inTransit = 1;
+  waypointIndex = 0;
+  currentRoute = interpolateRoute(waypoints);
+
+  const btn = document.getElementById('btn-send');
+  btn.textContent = 'In Transit...';
+  btn.className = 'start-btn on';
+
+  // Draw path
+  if (pathLine) map.removeLayer(pathLine);
+  if (travelledLine) map.removeLayer(travelledLine);
+  pathLine = L.polyline(currentRoute, { color: '#58a6ff', weight: 3, opacity: 0.4, dashArray: '8 6' }).addTo(map);
+  travelledLine = L.polyline([], { color: '#3fb950', weight: 3, opacity: 0.8 }).addTo(map);
+
+  // Move robot to start
+  robotMarker.setLatLng(currentRoute[0]);
+
+  const fromName = BUILDINGS[from].name;
+  const toName = BUILDINGS[to].name;
+  addLog('Order #' + deliveryId + ': ' + fromName + ' → ' + toName + ' (' + packageType + ')', '');
+  document.getElementById('robot-status').textContent = 'Moving: ' + fromName + ' → ' + toName;
+  document.getElementById('robot-status').style.color = '#58a6ff';
+
+  updateStats();
+  moveRobot();
+};
+
+// ===== MOVE ROBOT =====
+function moveRobot() {
+  if (waypointIndex >= currentRoute.length) {
+    deliveryComplete();
+    return;
+  }
+
+  const pos = currentRoute[waypointIndex];
+  robotMarker.setLatLng(pos);
+
+  // Update travelled line
+  const travelled = currentRoute.slice(0, waypointIndex + 1);
+  travelledLine.setLatLngs(travelled);
+
+  // Calculate distance from previous point
+  if (waypointIndex > 0) {
+    const prev = currentRoute[waypointIndex - 1];
+    const dist = haversine(prev[0], prev[1], pos[0], pos[1]);
+    totalDistance += dist;
+  }
+
+  // Speed simulation
+  const speed = 3 + Math.random() * 2;
+  document.getElementById('g-speed').textContent = speed.toFixed(1);
+  document.getElementById('bar-speed').style.width = (speed / 8 * 100) + '%';
+
+  // Battery drain
+  battery = Math.max(5, battery - 0.15);
+  document.getElementById('g-battery').textContent = Math.round(battery) + '%';
+  document.getElementById('bar-battery').style.width = battery + '%';
+  document.getElementById('bar-battery').style.background = battery > 30 ? '#3fb950' : battery > 15 ? '#fbbf24' : '#f87171';
+
+  // Check obstacle
+  const obstacle = checkObstacles(pos[0], pos[1]);
+  if (obstacle) {
+    obstaclesAvoided++;
+    addLog('Obstacle avoided: ' + obstacle.label, 'obstacle');
+    // Flash obstacle marker
+    const oIdx = OBSTACLES.indexOf(obstacle);
+    if (oIdx >= 0) {
+      obstacleMarkers[oIdx].setStyle({ fillOpacity: 0.8 });
+      setTimeout(() => obstacleMarkers[oIdx].setStyle({ fillOpacity: 0.25 }), 500);
+    }
+  }
+
+  // Publish MQTT
+  if (mqttClient?.connected) {
+    mqttClient.publish('delivery/' + deliveryId + '/position', JSON.stringify({
+      lat: pos[0], lng: pos[1],
+      speed: speed, battery: Math.round(battery),
+      status: 'in_transit',
+      progress: Math.round(waypointIndex / currentRoute.length * 100),
+    }));
+  }
+
+  updateStats();
+  waypointIndex++;
+
+  // Vary speed — pause briefly near obstacles
+  const delay = obstacle ? 250 : 120;
+  moveTimer = setTimeout(moveRobot, delay);
+}
+
+// ===== DELIVERY COMPLETE =====
+function deliveryComplete() {
+  robotMoving = false;
+  inTransit = 0;
+  deliveryCount++;
+  const elapsed = ((Date.now() - deliveryStartTime) / 1000).toFixed(1);
+  deliveryTimes.push(parseFloat(elapsed));
+
+  document.getElementById('g-speed').textContent = '0';
+  document.getElementById('bar-speed').style.width = '0%';
+
+  const btn = document.getElementById('btn-send');
+  btn.textContent = 'Send Robot';
+  btn.className = 'start-btn off';
+
+  document.getElementById('robot-status').textContent = 'Delivered! QR verified';
+  document.getElementById('robot-status').style.color = '#3fb950';
+
+  // Show QR overlay
+  const qr = document.getElementById('qr-overlay');
+  qr.style.display = 'block';
+  setTimeout(() => { qr.style.display = 'none'; }, 2500);
+
+  addLog('Delivered #' + deliveryId + ' in ' + elapsed + 's', 'delivered');
+
+  if (mqttClient?.connected) {
+    mqttClient.publish('delivery/' + deliveryId + '/position', JSON.stringify({
+      lat: currentRoute[currentRoute.length - 1][0],
+      lng: currentRoute[currentRoute.length - 1][1],
+      speed: 0, battery: Math.round(battery),
+      status: 'delivered',
+      progress: 100,
+    }));
+  }
+
+  updateStats();
+}
+
+// ===== LOG =====
+function addLog(msg, cls) {
+  const feed = document.getElementById('feed');
+  const time = new Date().toLocaleTimeString('th-TH', { hour12: false });
+  const el = document.createElement('div');
+  el.className = 'feed-entry ' + (cls || '');
+  el.innerHTML = '<span class="ts">' + time + '</span><span class="msg">' + msg + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > 30) feed.lastChild.remove();
+}
+
+// ===== STATS =====
+function updateStats() {
+  document.getElementById('s-completed').textContent = deliveryCount;
+  document.getElementById('s-transit').textContent = inTransit;
+  const avg = deliveryTimes.length > 0 ? (deliveryTimes.reduce((a,b) => a+b, 0) / deliveryTimes.length).toFixed(1) : '0';
+  document.getElementById('s-avgtime').textContent = avg + 's';
+  document.getElementById('s-battery').textContent = Math.round(battery) + '%';
+  document.getElementById('s-obstacles').textContent = obstaclesAvoided;
+  document.getElementById('s-distance').textContent = Math.round(totalDistance) + 'm';
+}
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+    mqttClient.subscribe('delivery/+/position');
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== INIT =====
+initMQTT();
+// Fix map rendering in grid
+setTimeout(() => map.invalidateSize(), 200);
+</script>
+</body>
+</html>

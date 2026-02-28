@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phishing Detector — Real-time URL Analysis</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  input[type="text"], input[type="url"] {
+    width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+  .start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+
+  .chart-wrap { position: relative; height: 220px; margin-bottom: 12px; }
+
+  /* Test URL buttons */
+  .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .test-btn {
+    padding: 8px 6px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .test-btn:hover { border-color: #58a6ff; }
+  .test-btn.safe { border-left: 3px solid #3fb950; }
+  .test-btn.danger { border-left: 3px solid #f87171; }
+
+  /* Feature list */
+  .feature-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+  .feature-item {
+    display: flex; align-items: center; gap: 8px;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 10px; transition: all 0.3s;
+  }
+  .feature-item.active { border-color: #58a6ff; }
+  .feature-item.safe { border-color: #3fb950; background: rgba(63,185,80,0.05); }
+  .feature-item.warn { border-color: #fbbf24; background: rgba(251,191,36,0.05); }
+  .feature-item.danger { border-color: #f87171; background: rgba(248,113,113,0.05); }
+  .feature-icon { font-size: 1.1rem; width: 24px; text-align: center; }
+  .feature-label { font-size: 0.75rem; color: #8b949e; flex: 1; }
+  .feature-value { font-size: 0.8rem; font-weight: 600; min-width: 60px; text-align: right; }
+  .feature-value.safe { color: #3fb950; }
+  .feature-value.warn { color: #fbbf24; }
+  .feature-value.danger { color: #f87171; }
+  .feature-value.pending { color: #484f58; }
+
+  /* Risk gauge */
+  .gauge-container { display: flex; flex-direction: column; align-items: center; margin: 16px 0; }
+  .gauge-svg { width: 200px; height: 120px; }
+  .gauge-label { font-size: 0.8rem; color: #8b949e; margin-top: 4px; }
+  .gauge-score { font-size: 2rem; font-weight: 700; margin-top: -8px; }
+  .gauge-score.safe { color: #3fb950; }
+  .gauge-score.warn { color: #fbbf24; }
+  .gauge-score.danger { color: #f87171; }
+
+  /* Verdict */
+  .verdict-box {
+    padding: 12px; border-radius: 8px; text-align: center;
+    font-size: 1rem; font-weight: 700; margin: 8px 0;
+  }
+  .verdict-box.safe { background: rgba(63,185,80,0.15); border: 1px solid #3fb950; color: #3fb950; }
+  .verdict-box.suspicious { background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; }
+  .verdict-box.dangerous { background: rgba(248,113,113,0.15); border: 1px solid #f87171; color: #f87171; }
+
+  /* AI explanation */
+  .ai-panel {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px; margin-top: 8px; min-height: 80px;
+  }
+  .ai-panel .ai-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .ai-panel .ai-title { font-size: 0.8rem; font-weight: 600; color: #58a6ff; }
+  .ai-panel .ai-content { font-size: 0.75rem; color: #e6edf3; line-height: 1.5; }
+  .ai-panel .ai-content .typing-cursor { display: inline-block; width: 2px; height: 12px; background: #58a6ff; animation: blink 0.8s infinite; vertical-align: text-bottom; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* URL breakdown */
+  .url-breakdown {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; font-family: monospace; font-size: 0.75rem; word-break: break-all;
+    margin: 8px 0; line-height: 1.6;
+  }
+  .url-part-protocol { color: #8b949e; }
+  .url-part-subdomain { color: #f0883e; }
+  .url-part-domain { color: #58a6ff; font-weight: 700; }
+  .url-part-tld { color: #58a6ff; }
+  .url-part-path { color: #8b949e; }
+  .url-part-suspicious { color: #f87171; background: rgba(248,113,113,0.15); padding: 0 2px; border-radius: 2px; }
+
+  /* Feed */
+  .feed { max-height: 180px; overflow-y: auto; font-size: 0.7rem; font-family: monospace; }
+  .feed-entry { padding: 4px 8px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; align-items: center; }
+  .feed-entry .ts { color: #484f58; flex-shrink: 0; }
+  .feed-entry .score { min-width: 35px; font-weight: 700; }
+  .feed-entry .score.safe { color: #3fb950; }
+  .feed-entry .score.warn { color: #fbbf24; }
+  .feed-entry .score.danger { color: #f87171; }
+  .feed-entry .url-text { color: #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #fbbf24);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>Phishing Detector</h1>
+    <span class="sub">Real-time URL Analysis — Feature Engineering</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="arena.html">Arena</a>
+    </div>
+  </div>
+
+  <!-- LEFT: URL Input + Test URLs -->
+  <div class="panel">
+    <h2>URL Analysis</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">Enter URL to Check</label>
+    <input type="url" id="check-url" value="" placeholder="https://example.com">
+
+    <button class="start-btn off" id="btn-check" onclick="checkURL()">Check URL</button>
+
+    <h3>Test URLs</h3>
+    <div class="test-grid" id="test-grid">
+      <button class="test-btn safe" data-url="https://www.kasikornbank.com/th/personal">KBank<br><small>กสิกรไทย (จริง)</small></button>
+      <button class="test-btn danger" data-url="https://www.kas1kornbank.com/th/login-secure">Fake KBank<br><small>K-ปลอม</small></button>
+      <button class="test-btn safe" data-url="https://www.google.com/search?q=test">Google<br><small>google.com (จริง)</small></button>
+      <button class="test-btn danger" data-url="https://www.g00gle-secure.com/login?redirect=account">Fake Google<br><small>g00gle (ปลอม)</small></button>
+      <button class="test-btn safe" data-url="https://www.scb.co.th/th/personal-banking.html">SCB<br><small>ไทยพาณิชย์ (จริง)</small></button>
+      <button class="test-btn danger" data-url="http://scb-secure-login.tk/verify/account?id=38271">Fake SCB<br><small>scb-secure.tk</small></button>
+    </div>
+
+    <h3>Check History</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- CENTER: Feature Analysis -->
+  <div class="panel">
+    <h2>URL Breakdown</h2>
+    <div class="url-breakdown" id="url-breakdown">
+      <span style="color:#484f58">Enter a URL to analyze</span>
+    </div>
+
+    <h2>Feature Extraction</h2>
+    <div class="feature-list" id="feature-list">
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F4C5;</span>
+        <span class="feature-label">Domain Age</span>
+        <span class="feature-value pending" id="f-age">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F512;</span>
+        <span class="feature-label">SSL Certificate</span>
+        <span class="feature-value pending" id="f-ssl">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F520;</span>
+        <span class="feature-label">Levenshtein Distance</span>
+        <span class="feature-value pending" id="f-lev">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F310;</span>
+        <span class="feature-label">Subdomain Count</span>
+        <span class="feature-value pending" id="f-sub">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F4C2;</span>
+        <span class="feature-label">Path Depth</span>
+        <span class="feature-value pending" id="f-path">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x26A0;</span>
+        <span class="feature-label">Suspicious Keywords</span>
+        <span class="feature-value pending" id="f-keywords">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F4CF;</span>
+        <span class="feature-label">URL Length</span>
+        <span class="feature-value pending" id="f-length">--</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#x1F3F7;</span>
+        <span class="feature-label">TLD Risk</span>
+        <span class="feature-value pending" id="f-tld">--</span>
+      </div>
+    </div>
+
+    <h2>Feature Radar</h2>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  </div>
+
+  <!-- RIGHT: Risk Assessment -->
+  <div class="panel">
+    <h2>Risk Assessment</h2>
+
+    <div class="gauge-container">
+      <svg class="gauge-svg" viewBox="0 0 200 110">
+        <!-- Background arc -->
+        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#21262d" stroke-width="12" stroke-linecap="round"/>
+        <!-- Risk arc -->
+        <path id="gauge-arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#3fb950" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 251.3"/>
+        <!-- Tick marks -->
+        <text x="15" y="108" fill="#8b949e" font-size="8">0</text>
+        <text x="93" y="18" fill="#8b949e" font-size="8">50</text>
+        <text x="175" y="108" fill="#8b949e" font-size="8">100</text>
+      </svg>
+      <div class="gauge-score safe" id="gauge-score">0</div>
+      <div class="gauge-label" id="gauge-label">Risk Score</div>
+    </div>
+
+    <div class="verdict-box safe" id="verdict-box">
+      Waiting for URL...
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-checked">0</div><div class="lbl">URLs Checked</div></div>
+      <div class="stat-card green"><div class="num" id="s-safe">0</div><div class="lbl">Safe</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-suspicious">0</div><div class="lbl">Suspicious</div></div>
+      <div class="stat-card red"><div class="num" id="s-dangerous">0</div><div class="lbl">Dangerous</div></div>
+      <div class="stat-card blue"><div class="num" id="s-avg">0</div><div class="lbl">Avg Risk Score</div></div>
+      <div class="stat-card green"><div class="num" id="s-accuracy">94.2%</div><div class="lbl">Detection Accuracy</div></div>
+    </div>
+
+    <h3>AI Explanation</h3>
+    <div class="ai-panel" id="ai-panel">
+      <div class="ai-header">
+        <span style="font-size:1rem;">&#x1F916;</span>
+        <span class="ai-title">AI Phishing Analyst</span>
+      </div>
+      <div class="ai-content" id="ai-content">
+        <span style="color:#484f58">ใส่ URL เพื่อรับการวิเคราะห์</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const MAX_FEED = 20;
+
+// ===== STATE =====
+let mqttClient = null;
+let checking = false;
+let totalScores = [];
+let stats = { checked: 0, safe: 0, suspicious: 0, dangerous: 0 };
+
+// ===== KNOWN BRANDS =====
+const KNOWN_BRANDS = [
+  'google', 'facebook', 'amazon', 'apple', 'microsoft', 'paypal', 'netflix',
+  'kasikornbank', 'scb', 'kbank', 'bbl', 'krungsri', 'ttb', 'line', 'truemoney',
+  'lazada', 'shopee', 'grab', 'agoda', 'instagram', 'twitter', 'linkedin',
+];
+
+const SUSPICIOUS_KEYWORDS = ['login', 'secure', 'verify', 'account', 'update', 'confirm', 'banking', 'password', 'credential', 'suspend', 'urgent', 'alert'];
+const RISKY_TLDS = ['tk', 'ml', 'ga', 'cf', 'gq', 'xyz', 'buzz', 'top', 'click', 'link', 'work'];
+
+// ===== URL DATABASE (simulated results) =====
+const URL_DB = {
+  'www.kasikornbank.com': { age: 22, ssl: true, sslIssuer: 'DigiCert', lev: 0, brand: 'kasikornbank', risk: 5 },
+  'www.kas1kornbank.com': { age: 0.02, ssl: true, sslIssuer: "Let's Encrypt", lev: 2, brand: 'kasikornbank', risk: 88 },
+  'www.google.com': { age: 27, ssl: true, sslIssuer: 'Google Trust Services', lev: 0, brand: 'google', risk: 2 },
+  'www.g00gle-secure.com': { age: 0.05, ssl: false, sslIssuer: 'None', lev: 3, brand: 'google', risk: 92 },
+  'www.scb.co.th': { age: 20, ssl: true, sslIssuer: 'DigiCert', lev: 0, brand: 'scb', risk: 3 },
+  'scb-secure-login.tk': { age: 0.01, ssl: false, sslIssuer: 'None', lev: 4, brand: 'scb', risk: 95 },
+};
+
+// ===== TEST URL BUTTONS =====
+document.getElementById('test-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.test-btn');
+  if (!btn) return;
+  document.getElementById('check-url').value = btn.dataset.url;
+  checkURL();
+});
+
+// ===== CHART SETUP =====
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'radar',
+  data: {
+    labels: ['Domain Age', 'SSL', 'Brand Similarity', 'Subdomains', 'Path Depth', 'Keywords', 'URL Length', 'TLD Risk'],
+    datasets: [{
+      label: 'Risk Score',
+      data: [0, 0, 0, 0, 0, 0, 0, 0],
+      backgroundColor: 'rgba(88,166,255,0.15)',
+      borderColor: '#58a6ff',
+      borderWidth: 2,
+      pointBackgroundColor: '#58a6ff',
+      pointRadius: 4,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      r: {
+        beginAtZero: true, max: 100,
+        grid: { color: '#21262d' },
+        angleLines: { color: '#21262d' },
+        pointLabels: { color: '#8b949e', font: { size: 9 } },
+        ticks: { display: false },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+    },
+  },
+});
+
+// ===== LEVENSHTEIN DISTANCE =====
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// ===== PARSE URL =====
+function parseURL(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    const hostParts = url.hostname.split('.');
+    const tld = hostParts.slice(-1)[0];
+    const sld = hostParts.length >= 2 ? hostParts.slice(-2)[0] : '';
+    const subdomains = hostParts.length > 2 ? hostParts.slice(0, -2) : [];
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    return { protocol: url.protocol, hostname: url.hostname, subdomains, sld, tld, path: url.pathname, pathParts, search: url.search, full: urlStr };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ===== EXTRACT FEATURES =====
+function extractFeatures(urlStr) {
+  const parsed = parseURL(urlStr);
+  if (!parsed) return null;
+
+  const dbEntry = URL_DB[parsed.hostname];
+
+  // Domain age
+  const age = dbEntry ? dbEntry.age : (0.1 + Math.random() * 2);
+
+  // SSL
+  const ssl = dbEntry ? dbEntry.ssl : (parsed.protocol === 'https:');
+  const sslIssuer = dbEntry ? dbEntry.sslIssuer : (ssl ? "Let's Encrypt" : 'None');
+
+  // Levenshtein
+  let minLev = Infinity;
+  let closestBrand = '';
+  const domainClean = parsed.sld.replace(/[0-9\-_]/g, '').toLowerCase();
+  for (const brand of KNOWN_BRANDS) {
+    const d = levenshtein(domainClean, brand);
+    if (d < minLev) { minLev = d; closestBrand = brand; }
+  }
+  const levDistance = dbEntry ? dbEntry.lev : minLev;
+
+  // Subdomains
+  const subCount = parsed.subdomains.length;
+
+  // Path depth
+  const pathDepth = parsed.pathParts.length;
+
+  // Suspicious keywords
+  const urlLower = urlStr.toLowerCase();
+  const foundKeywords = SUSPICIOUS_KEYWORDS.filter(k => urlLower.includes(k));
+
+  // URL length
+  const urlLength = urlStr.length;
+
+  // TLD risk
+  const tldRisky = RISKY_TLDS.includes(parsed.tld.toLowerCase());
+
+  // Compute risk score
+  let risk = 0;
+  if (dbEntry) {
+    risk = dbEntry.risk;
+  } else {
+    if (age < 1) risk += 30;
+    else if (age < 3) risk += 15;
+    if (!ssl) risk += 20;
+    if (levDistance > 0 && levDistance <= 3) risk += 25;
+    if (subCount > 2) risk += 10;
+    if (pathDepth > 3) risk += 5;
+    if (foundKeywords.length > 0) risk += foundKeywords.length * 5;
+    if (urlLength > 75) risk += 10;
+    if (tldRisky) risk += 20;
+    risk = Math.min(100, risk);
+  }
+
+  return {
+    parsed,
+    age: age.toFixed(1),
+    ssl, sslIssuer,
+    levDistance, closestBrand,
+    subCount,
+    pathDepth,
+    keywords: foundKeywords,
+    urlLength,
+    tldRisky,
+    risk,
+    radarScores: [
+      age < 1 ? 90 : age < 3 ? 50 : 10,          // Domain age risk
+      ssl ? 10 : 80,                                // SSL risk
+      levDistance === 0 ? 5 : levDistance <= 2 ? 70 : levDistance <= 4 ? 50 : 20, // Brand similarity risk
+      subCount > 3 ? 80 : subCount > 1 ? 40 : 10,  // Subdomain risk
+      pathDepth > 4 ? 70 : pathDepth > 2 ? 40 : 10, // Path depth risk
+      foundKeywords.length > 2 ? 80 : foundKeywords.length > 0 ? 40 : 5, // Keyword risk
+      urlLength > 100 ? 80 : urlLength > 60 ? 40 : 10, // URL length risk
+      tldRisky ? 90 : 10,                           // TLD risk
+    ],
+  };
+}
+
+// ===== CHECK URL =====
+window.checkURL = async function() {
+  if (checking) return;
+  const urlStr = document.getElementById('check-url').value.trim();
+  if (!urlStr) return;
+
+  checking = true;
+  const btn = document.getElementById('btn-check');
+  btn.textContent = 'Analyzing...';
+  btn.className = 'start-btn on';
+  btn.disabled = true;
+
+  // Reset features
+  const featureIds = ['f-age', 'f-ssl', 'f-lev', 'f-sub', 'f-path', 'f-keywords', 'f-length', 'f-tld'];
+  featureIds.forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '--';
+    el.className = 'feature-value pending';
+    el.closest('.feature-item').className = 'feature-item';
+  });
+
+  document.getElementById('ai-content').innerHTML = '<span style="color:#484f58">Analyzing...</span>';
+
+  // Parse and display URL breakdown
+  const parsed = parseURL(urlStr);
+  if (parsed) {
+    displayURLBreakdown(parsed);
+  }
+
+  const features = extractFeatures(urlStr);
+  if (!features) {
+    document.getElementById('url-breakdown').innerHTML = '<span style="color:#f87171">Invalid URL</span>';
+    btn.textContent = 'Check URL';
+    btn.className = 'start-btn off';
+    btn.disabled = false;
+    checking = false;
+    return;
+  }
+
+  // Animate features one by one
+  await sleep(300);
+
+  // 1. Domain Age
+  await animateFeature('f-age', features.age + ' years', parseFloat(features.age) > 3 ? 'safe' : parseFloat(features.age) > 1 ? 'warn' : 'danger');
+  await sleep(250);
+
+  // 2. SSL
+  await animateFeature('f-ssl', features.ssl ? features.sslIssuer : 'No SSL', features.ssl ? 'safe' : 'danger');
+  await sleep(250);
+
+  // 3. Levenshtein
+  const levText = features.levDistance === 0 ? 'Exact match' : 'Distance ' + features.levDistance + ' (' + features.closestBrand + ')';
+  await animateFeature('f-lev', levText, features.levDistance === 0 ? 'safe' : features.levDistance <= 2 ? 'danger' : 'warn');
+  await sleep(250);
+
+  // 4. Subdomain count
+  await animateFeature('f-sub', features.subCount + ' subdomain' + (features.subCount !== 1 ? 's' : ''), features.subCount > 2 ? 'danger' : features.subCount > 1 ? 'warn' : 'safe');
+  await sleep(250);
+
+  // 5. Path depth
+  await animateFeature('f-path', features.pathDepth + ' level' + (features.pathDepth !== 1 ? 's' : ''), features.pathDepth > 3 ? 'warn' : 'safe');
+  await sleep(250);
+
+  // 6. Suspicious keywords
+  const kwText = features.keywords.length > 0 ? features.keywords.join(', ') : 'None';
+  await animateFeature('f-keywords', kwText, features.keywords.length > 2 ? 'danger' : features.keywords.length > 0 ? 'warn' : 'safe');
+  await sleep(250);
+
+  // 7. URL length
+  await animateFeature('f-length', features.urlLength + ' chars', features.urlLength > 100 ? 'danger' : features.urlLength > 60 ? 'warn' : 'safe');
+  await sleep(250);
+
+  // 8. TLD risk
+  await animateFeature('f-tld', features.parsed.tld.toUpperCase() + (features.tldRisky ? ' (risky)' : ''), features.tldRisky ? 'danger' : 'safe');
+
+  // Update radar chart
+  chart.data.datasets[0].data = features.radarScores;
+  const riskColor = features.risk >= 70 ? '#f87171' : features.risk >= 40 ? '#fbbf24' : '#3fb950';
+  chart.data.datasets[0].borderColor = riskColor;
+  chart.data.datasets[0].backgroundColor = riskColor.replace(')', ',0.15)').replace('rgb', 'rgba');
+  chart.data.datasets[0].pointBackgroundColor = riskColor;
+  chart.update();
+
+  // Animate gauge
+  await animateGauge(features.risk);
+
+  // Verdict
+  const verdictEl = document.getElementById('verdict-box');
+  if (features.risk >= 70) {
+    verdictEl.className = 'verdict-box dangerous';
+    verdictEl.textContent = 'DANGEROUS — URL นี้มีความเสี่ยงสูงมาก!';
+    stats.dangerous++;
+  } else if (features.risk >= 40) {
+    verdictEl.className = 'verdict-box suspicious';
+    verdictEl.textContent = 'SUSPICIOUS — น่าสงสัย ควรระวัง';
+    stats.suspicious++;
+  } else {
+    verdictEl.className = 'verdict-box safe';
+    verdictEl.textContent = 'SAFE — URL นี้น่าจะปลอดภัย';
+    stats.safe++;
+  }
+
+  stats.checked++;
+  totalScores.push(features.risk);
+  updateStats();
+
+  // Add to feed
+  addFeedEntry(urlStr, features.risk);
+
+  // AI explanation
+  const explanation = generateExplanation(features);
+  await typeAI(explanation);
+
+  // MQTT publish
+  if (mqttClient?.connected) {
+    mqttClient.publish('phishing/check', JSON.stringify({
+      url: urlStr,
+      risk_score: features.risk,
+      features: { age: features.age, ssl: features.ssl, lev: features.levDistance, subdomains: features.subCount },
+      verdict: features.risk >= 70 ? 'dangerous' : features.risk >= 40 ? 'suspicious' : 'safe',
+    }));
+  }
+
+  btn.textContent = 'Check URL';
+  btn.className = 'start-btn off';
+  btn.disabled = false;
+  checking = false;
+};
+
+function displayURLBreakdown(parsed) {
+  const el = document.getElementById('url-breakdown');
+  let html = '<span class="url-part-protocol">' + parsed.protocol + '//</span>';
+  if (parsed.subdomains.length > 0) {
+    html += '<span class="url-part-subdomain">' + parsed.subdomains.join('.') + '.</span>';
+  }
+  html += '<span class="url-part-domain">' + parsed.sld + '</span>';
+  html += '<span class="url-part-tld">.' + parsed.tld + '</span>';
+
+  const pathLower = parsed.path.toLowerCase();
+  let pathHtml = parsed.path;
+  SUSPICIOUS_KEYWORDS.forEach(kw => {
+    const regex = new RegExp('(' + kw + ')', 'gi');
+    pathHtml = pathHtml.replace(regex, '<span class="url-part-suspicious">$1</span>');
+  });
+  html += '<span class="url-part-path">' + pathHtml + '</span>';
+  if (parsed.search) html += '<span class="url-part-path">' + escapeHtml(parsed.search) + '</span>';
+  el.innerHTML = html;
+}
+
+async function animateFeature(id, value, level) {
+  const el = document.getElementById(id);
+  const item = el.closest('.feature-item');
+  item.className = 'feature-item active';
+  await sleep(100);
+  el.textContent = value;
+  el.className = 'feature-value ' + level;
+  item.className = 'feature-item ' + level;
+}
+
+async function animateGauge(targetRisk) {
+  const arc = document.getElementById('gauge-arc');
+  const scoreEl = document.getElementById('gauge-score');
+  const totalLen = 251.3;
+  let current = 0;
+  const steps = 40;
+  const stepSize = targetRisk / steps;
+
+  for (let i = 0; i <= steps; i++) {
+    current = Math.min(targetRisk, stepSize * i);
+    const dashLen = (current / 100) * totalLen;
+    arc.setAttribute('stroke-dasharray', dashLen + ' ' + totalLen);
+
+    const color = current >= 70 ? '#f87171' : current >= 40 ? '#fbbf24' : '#3fb950';
+    arc.setAttribute('stroke', color);
+    scoreEl.textContent = Math.round(current);
+    scoreEl.className = 'gauge-score ' + (current >= 70 ? 'danger' : current >= 40 ? 'warn' : 'safe');
+    await sleep(20);
+  }
+}
+
+function generateExplanation(features) {
+  const reasons = [];
+  if (parseFloat(features.age) < 1) reasons.push('Domain อายุน้อยมาก (' + features.age + ' ปี) — เว็บ phishing มักจดทะเบียนใหม่');
+  if (!features.ssl) reasons.push('ไม่มี SSL certificate — เว็บไม่เข้ารหัสข้อมูล ไม่ปลอดภัย');
+  if (features.levDistance > 0 && features.levDistance <= 3) reasons.push('ชื่อ domain คล้าย "' + features.closestBrand + '" (distance=' + features.levDistance + ') — อาจเป็นการปลอมแปลงแบรนด์');
+  if (features.subCount > 2) reasons.push('มี subdomain มากผิดปกติ (' + features.subCount + ' ชั้น)');
+  if (features.keywords.length > 0) reasons.push('พบคำน่าสงสัย: ' + features.keywords.join(', '));
+  if (features.tldRisky) reasons.push('TLD ".' + features.parsed.tld + '" เป็นโดเมนฟรี มักใช้ในเว็บ phishing');
+  if (features.urlLength > 75) reasons.push('URL ยาวผิดปกติ (' + features.urlLength + ' ตัวอักษร) — phishing มักใช้ URL ยาวเพื่อซ่อนจุดประสงค์');
+
+  if (reasons.length === 0) {
+    return 'URL นี้ผ่านการตรวจสอบทุกเกณฑ์\n\nDomain มีอายุมาก มี SSL certificate จากผู้ออกที่น่าเชื่อถือ และไม่พบสัญญาณ phishing\n\nอย่างไรก็ตาม ควรตรวจสอบเนื้อหาภายในเว็บด้วยเสมอ';
+  }
+
+  let text = 'พบสัญญาณ phishing ' + reasons.length + ' ข้อ:\n\n';
+  reasons.forEach((r, i) => { text += (i + 1) + '. ' + r + '\n'; });
+  text += '\nRisk Score: ' + features.risk + '/100';
+  if (features.risk >= 70) text += '\n\nคำเตือน: อย่ากรอกข้อมูลส่วนตัวหรือรหัสผ่านบนเว็บนี้!';
+  return text;
+}
+
+function addFeedEntry(url, risk) {
+  const feed = document.getElementById('feed');
+  const now = new Date();
+  const ts = now.toLocaleTimeString('th-TH', { hour12: false });
+  const cls = risk >= 70 ? 'danger' : risk >= 40 ? 'warn' : 'safe';
+  const el = document.createElement('div');
+  el.className = 'feed-entry';
+  el.innerHTML = '<span class="ts">' + ts + '</span><span class="score ' + cls + '">' + risk + '</span><span class="url-text">' + escapeHtml(url) + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+}
+
+function updateStats() {
+  document.getElementById('s-checked').textContent = stats.checked;
+  document.getElementById('s-safe').textContent = stats.safe;
+  document.getElementById('s-suspicious').textContent = stats.suspicious;
+  document.getElementById('s-dangerous').textContent = stats.dangerous;
+  const avg = totalScores.length > 0 ? Math.round(totalScores.reduce((a, b) => a + b, 0) / totalScores.length) : 0;
+  document.getElementById('s-avg').textContent = avg;
+}
+
+async function typeAI(text) {
+  const el = document.getElementById('ai-content');
+  el.innerHTML = '';
+  const lines = text.split('\n');
+  let fullHtml = '';
+  for (const line of lines) {
+    for (let i = 0; i < line.length; i++) {
+      fullHtml += escapeHtml(line[i]);
+      el.innerHTML = fullHtml + '<span class="typing-cursor"></span>';
+      await sleep(12 + Math.random() * 12);
+    }
+    fullHtml += '<br>';
+    el.innerHTML = fullHtml + '<span class="typing-cursor"></span>';
+    await sleep(80);
+  }
+  el.innerHTML = fullHtml;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== INIT =====
+initMQTT();
+</script>
+</body>
+</html>

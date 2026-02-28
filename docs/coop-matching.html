@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Co-op Matching — AI Student-Company Matching</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  input[type="text"] {
+    width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+  input[type="range"] { width: 100%; accent-color: #58a6ff; }
+  .val { float: right; color: #58a6ff; font-weight: 600; font-size: 0.75rem; }
+  select {
+    width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+  .start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+
+  .chart-wrap { position: relative; height: 220px; margin-bottom: 12px; }
+
+  /* Skill checkboxes */
+  .skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 4px 0; }
+  .skill-check {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; cursor: pointer; transition: all 0.15s;
+    font-size: 0.7rem; color: #8b949e;
+  }
+  .skill-check:hover { border-color: #58a6ff; }
+  .skill-check input { accent-color: #58a6ff; }
+  .skill-check.checked { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+
+  /* Match results */
+  .match-list { display: flex; flex-direction: column; gap: 8px; }
+  .match-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px; cursor: pointer; transition: all 0.2s;
+    animation: fadeSlide 0.4s ease;
+  }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  .match-card:hover { border-color: #58a6ff; }
+  .match-card.selected { border-color: #58a6ff; background: rgba(88,166,255,0.05); }
+  .match-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .match-company { font-size: 0.9rem; font-weight: 700; color: #e6edf3; }
+  .match-score { font-size: 1.1rem; font-weight: 700; }
+  .match-score.high { color: #3fb950; }
+  .match-score.medium { color: #fbbf24; }
+  .match-score.low { color: #f87171; }
+  .match-bar-bg { height: 6px; background: #21262d; border-radius: 3px; margin: 4px 0; }
+  .match-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+  .match-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .match-tag {
+    padding: 2px 6px; border-radius: 10px; font-size: 0.6rem;
+    background: #21262d; color: #8b949e; border: 1px solid #30363d;
+  }
+  .match-tag.overlap { background: #1f3a5f; color: #58a6ff; border-color: #58a6ff; }
+
+  /* Matching animation */
+  .match-animation {
+    position: relative; height: 200px; margin: 12px 0;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    overflow: hidden;
+  }
+  .match-animation canvas { display: block; width: 100%; height: 100%; }
+
+  /* Company detail */
+  .company-detail {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px; margin-top: 8px;
+  }
+  .company-detail .cd-name { font-size: 1rem; font-weight: 700; color: #58a6ff; margin-bottom: 4px; }
+  .company-detail .cd-row { font-size: 0.75rem; color: #8b949e; margin: 3px 0; }
+  .company-detail .cd-row span { color: #e6edf3; }
+  .company-detail .cd-skills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .company-detail .cd-skill {
+    padding: 2px 8px; border-radius: 10px; font-size: 0.65rem;
+    background: #21262d; color: #8b949e; border: 1px solid #30363d;
+  }
+  .company-detail .cd-skill.required { border-color: #f0883e; color: #f0883e; }
+
+  /* AI panel */
+  .ai-panel {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px; margin-top: 8px; min-height: 80px;
+  }
+  .ai-panel .ai-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .ai-panel .ai-title { font-size: 0.8rem; font-weight: 600; color: #58a6ff; }
+  .ai-panel .ai-content { font-size: 0.75rem; color: #e6edf3; line-height: 1.5; }
+  .ai-panel .ai-content .typing-cursor { display: inline-block; width: 2px; height: 12px; background: #58a6ff; animation: blink 0.8s infinite; vertical-align: text-bottom; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #3fb950, #58a6ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>Co-op Matching</h1>
+    <span class="sub">AI Student-Company Matching — สหกิจศึกษา</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="arena.html">Arena</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Student Profile Form -->
+  <div class="panel">
+    <h2>Student Profile</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">Student Name</label>
+    <input type="text" id="student-name" value="" placeholder="ชื่อ-นามสกุล">
+
+    <label class="ctrl">Student ID</label>
+    <input type="text" id="student-id" value="" placeholder="รหัสนักศึกษา">
+
+    <label class="ctrl">GPA <span class="val" id="v-gpa">3.00</span></label>
+    <input type="range" id="r-gpa" min="1.0" max="4.0" step="0.01" value="3.00">
+
+    <label class="ctrl">Interest Area</label>
+    <select id="interest">
+      <option value="web">Web Development</option>
+      <option value="mobile">Mobile App Development</option>
+      <option value="data">Data Science / AI</option>
+      <option value="security">Cybersecurity</option>
+      <option value="iot">IoT / Embedded</option>
+      <option value="cloud">Cloud / DevOps</option>
+      <option value="network">Network / Infrastructure</option>
+    </select>
+
+    <h3>Skills</h3>
+    <div class="skill-grid" id="skill-grid">
+      <label class="skill-check"><input type="checkbox" value="python"> Python</label>
+      <label class="skill-check"><input type="checkbox" value="javascript"> JavaScript</label>
+      <label class="skill-check"><input type="checkbox" value="react"> React</label>
+      <label class="skill-check"><input type="checkbox" value="flutter"> Flutter</label>
+      <label class="skill-check"><input type="checkbox" value="iot"> IoT</label>
+      <label class="skill-check"><input type="checkbox" value="ml"> Machine Learning</label>
+      <label class="skill-check"><input type="checkbox" value="database"> Database</label>
+      <label class="skill-check"><input type="checkbox" value="network"> Network</label>
+      <label class="skill-check"><input type="checkbox" value="docker"> Docker</label>
+      <label class="skill-check"><input type="checkbox" value="java"> Java</label>
+      <label class="skill-check"><input type="checkbox" value="go"> Go</label>
+      <label class="skill-check"><input type="checkbox" value="figma"> UI/UX Design</label>
+    </div>
+
+    <button class="start-btn off" id="btn-match" onclick="startMatch()">Match Companies</button>
+  </div>
+
+  <!-- CENTER: Matching Animation + Results -->
+  <div class="panel">
+    <h2>Matching Process</h2>
+    <div class="match-animation"><canvas id="anim-canvas"></canvas></div>
+
+    <h2>Skill Comparison</h2>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+
+    <h2>Match Results</h2>
+    <div class="match-list" id="match-list">
+      <div style="color:#484f58; font-size:0.75rem; text-align:center; padding:20px;">
+        กรอกข้อมูลแล้วกด Match เพื่อจับคู่
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Company Details + AI + Stats -->
+  <div class="panel">
+    <h2>Statistics</h2>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-matched">0</div><div class="lbl">Students Matched</div></div>
+      <div class="stat-card green"><div class="num" id="s-avg">0%</div><div class="lbl">Avg Similarity</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-top">-</div><div class="lbl">Top Company</div></div>
+      <div class="stat-card blue"><div class="num" id="s-topskill">-</div><div class="lbl">Most Demanded</div></div>
+    </div>
+
+    <h3>Company Details</h3>
+    <div class="company-detail" id="company-detail">
+      <div class="cd-name">Select a company</div>
+      <div class="cd-row" style="color:#484f58">Click a match result to see details</div>
+    </div>
+
+    <h3>AI Matching Explanation</h3>
+    <div class="ai-panel" id="ai-panel">
+      <div class="ai-header">
+        <span style="font-size:1rem;">&#x1F916;</span>
+        <span class="ai-title">AI Matching Advisor</span>
+      </div>
+      <div class="ai-content" id="ai-content">
+        <span style="color:#484f58">กรอกข้อมูลแล้วกด Match เพื่อรับคำแนะนำ</span>
+      </div>
+    </div>
+
+    <h3>Skill Demand</h3>
+    <div class="chart-wrap" style="height:160px;"><canvas id="demand-chart"></canvas></div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+
+// ===== STATE =====
+let mqttClient = null;
+let matching = false;
+let matchResults = [];
+let selectedCompany = null;
+let totalMatches = 0;
+let allScores = [];
+let companyWins = {};
+let animCtx = null;
+let animFrame = null;
+
+// ===== COMPANY DATABASE =====
+const COMPANIES = [
+  {
+    id: 'scb-techx', name: 'SCB TechX', location: 'กรุงเทพ (สีลม)',
+    desc: 'บริษัทเทคโนโลยีในเครือ SCB ทำ Digital Banking, Blockchain, AI/ML',
+    skills: ['python', 'javascript', 'react', 'ml', 'docker', 'database'],
+    interests: ['web', 'data', 'cloud'],
+    minGpa: 2.75,
+    benefits: ['เงินเดือน 15,000-20,000', 'ประกันสุขภาพ', 'Flexible hours', 'Free lunch'],
+  },
+  {
+    id: 'true-digital', name: 'True Digital', location: 'กรุงเทพ (พญาไท)',
+    desc: 'Digital Transformation, IoT platform, Cloud services, 5G applications',
+    skills: ['python', 'javascript', 'iot', 'docker', 'network', 'go'],
+    interests: ['iot', 'cloud', 'network'],
+    minGpa: 2.50,
+    benefits: ['เงินเดือน 12,000-18,000', 'True WiFi ฟรี', 'Training budget', 'Gym'],
+  },
+  {
+    id: 'agoda', name: 'Agoda', location: 'กรุงเทพ (ปทุมวัน)',
+    desc: 'Online Travel Platform, Full-stack development, Data Engineering, ML',
+    skills: ['javascript', 'react', 'java', 'python', 'ml', 'database'],
+    interests: ['web', 'data', 'mobile'],
+    minGpa: 3.00,
+    benefits: ['เงินเดือน 20,000-30,000', 'International team', 'Free snacks', 'Travel discount'],
+  },
+  {
+    id: 'kbtg', name: 'KBTG', location: 'กรุงเทพ (แจ้งวัฒนะ)',
+    desc: 'Kasikorn Business Technology Group — FinTech, AI, Blockchain, K PLUS',
+    skills: ['java', 'python', 'react', 'flutter', 'ml', 'docker'],
+    interests: ['web', 'mobile', 'data', 'security'],
+    minGpa: 2.75,
+    benefits: ['เงินเดือน 18,000-25,000', 'Innovation lab', 'Mentorship', 'ประกัน'],
+  },
+  {
+    id: 'line-th', name: 'LINE Thailand', location: 'กรุงเทพ (ปทุมวัน)',
+    desc: 'LINE messaging platform, LINE MAN, LINE Shopping, Chatbot, AI',
+    skills: ['javascript', 'react', 'python', 'java', 'ml', 'figma'],
+    interests: ['web', 'mobile', 'data'],
+    minGpa: 3.00,
+    benefits: ['เงินเดือน 18,000-25,000', 'LINE sticker ฟรี', 'Creative culture', 'WFH'],
+  },
+  {
+    id: 'ais', name: 'AIS', location: 'กรุงเทพ (พหลโยธิน)',
+    desc: 'Telecom + Digital services, 5G, Cloud, IoT, Cybersecurity',
+    skills: ['network', 'python', 'iot', 'docker', 'database', 'go'],
+    interests: ['network', 'iot', 'cloud', 'security'],
+    minGpa: 2.50,
+    benefits: ['เงินเดือน 12,000-18,000', 'AIS SIM ฟรี', 'Training', '5G lab access'],
+  },
+  {
+    id: 'dtac', name: 'dtac (ทรู)', location: 'กรุงเทพ (จตุจักร)',
+    desc: 'Telecom, Digital payment, Network engineering, DevOps',
+    skills: ['network', 'python', 'docker', 'go', 'database', 'iot'],
+    interests: ['network', 'cloud', 'iot'],
+    minGpa: 2.50,
+    benefits: ['เงินเดือน 12,000-16,000', 'SIM ฟรี', 'Flexible working', 'Tech talks'],
+  },
+  {
+    id: 'pantip', name: 'Pantip.com', location: 'กรุงเทพ (ลาดพร้าว)',
+    desc: 'Thai community platform, Content moderation AI, Full-stack web',
+    skills: ['javascript', 'react', 'python', 'database', 'figma', 'docker'],
+    interests: ['web', 'data'],
+    minGpa: 2.25,
+    benefits: ['เงินเดือน 10,000-15,000', 'Startup culture', 'Flexible hours', 'Pet-friendly'],
+  },
+];
+
+// ===== GPA SLIDER =====
+const rGpa = document.getElementById('r-gpa');
+const vGpa = document.getElementById('v-gpa');
+rGpa.addEventListener('input', () => { vGpa.textContent = parseFloat(rGpa.value).toFixed(2); });
+
+// ===== SKILL CHECKBOXES =====
+document.getElementById('skill-grid').addEventListener('change', e => {
+  const label = e.target.closest('.skill-check');
+  if (label) label.classList.toggle('checked', e.target.checked);
+});
+
+// ===== CHARTS =====
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'radar',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Student', data: [], backgroundColor: 'rgba(88,166,255,0.2)', borderColor: '#58a6ff', borderWidth: 2, pointRadius: 4 },
+      { label: 'Company', data: [], backgroundColor: 'rgba(63,185,80,0.2)', borderColor: '#3fb950', borderWidth: 2, pointRadius: 4 },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      r: {
+        beginAtZero: true, max: 1,
+        grid: { color: '#21262d' },
+        angleLines: { color: '#21262d' },
+        pointLabels: { color: '#8b949e', font: { size: 9 } },
+        ticks: { display: false },
+      },
+    },
+    plugins: {
+      legend: { labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 12 } },
+    },
+  },
+});
+
+// Demand chart
+const demandCtx = document.getElementById('demand-chart').getContext('2d');
+const demandChart = new Chart(demandCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Python', 'JS', 'React', 'Java', 'ML', 'Docker', 'DB', 'Network', 'IoT', 'Flutter', 'Go', 'UI/UX'],
+    datasets: [{
+      label: 'Demand',
+      data: countSkillDemand(),
+      backgroundColor: 'rgba(88,166,255,0.5)',
+      borderColor: '#58a6ff',
+      borderWidth: 1,
+    }],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+    scales: {
+      x: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 9 } } },
+      y: { grid: { display: false }, ticks: { color: '#8b949e', font: { size: 9 } } },
+    },
+    plugins: { legend: { display: false } },
+  },
+});
+
+function countSkillDemand() {
+  const skills = ['python', 'javascript', 'react', 'java', 'ml', 'docker', 'database', 'network', 'iot', 'flutter', 'go', 'figma'];
+  return skills.map(s => COMPANIES.filter(c => c.skills.includes(s)).length);
+}
+
+// ===== COSINE SIMILARITY =====
+function cosineSimilarity(a, b) {
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  magA = Math.sqrt(magA);
+  magB = Math.sqrt(magB);
+  if (magA === 0 || magB === 0) return 0;
+  return dot / (magA * magB);
+}
+
+function getStudentVector() {
+  const allSkills = ['python', 'javascript', 'react', 'flutter', 'iot', 'ml', 'database', 'network', 'docker', 'java', 'go', 'figma'];
+  const checked = Array.from(document.querySelectorAll('#skill-grid input:checked')).map(c => c.value);
+  return allSkills.map(s => checked.includes(s) ? 1 : 0);
+}
+
+function getCompanyVector(company) {
+  const allSkills = ['python', 'javascript', 'react', 'flutter', 'iot', 'ml', 'database', 'network', 'docker', 'java', 'go', 'figma'];
+  return allSkills.map(s => company.skills.includes(s) ? 1 : 0);
+}
+
+// ===== MATCHING ANIMATION =====
+function initAnimation() {
+  const canvas = document.getElementById('anim-canvas');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  animCtx = canvas.getContext('2d');
+}
+
+let particles = [];
+let animActive = false;
+
+function startAnimation(studentName, companies) {
+  if (!animCtx) initAnimation();
+  const canvas = animCtx.canvas;
+  animActive = true;
+  particles = [];
+
+  const studentX = 60;
+  const studentY = canvas.height / 2;
+  const companySpacing = (canvas.height - 40) / companies.length;
+
+  function frame() {
+    if (!animActive) return;
+    animCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Student node
+    animCtx.fillStyle = '#58a6ff';
+    animCtx.beginPath();
+    animCtx.arc(studentX, studentY, 20, 0, Math.PI * 2);
+    animCtx.fill();
+    animCtx.fillStyle = '#e6edf3';
+    animCtx.font = '9px -apple-system, sans-serif';
+    animCtx.textAlign = 'center';
+    animCtx.fillText(studentName.substring(0, 8) || 'Student', studentX, studentY + 4);
+
+    // Company nodes
+    companies.forEach((c, i) => {
+      const cx = canvas.width - 60;
+      const cy = 20 + i * companySpacing + companySpacing / 2;
+
+      animCtx.fillStyle = '#3fb950';
+      animCtx.beginPath();
+      animCtx.arc(cx, cy, 16, 0, Math.PI * 2);
+      animCtx.fill();
+      animCtx.fillStyle = '#e6edf3';
+      animCtx.font = '8px -apple-system, sans-serif';
+      animCtx.textAlign = 'center';
+      animCtx.fillText(c.name.substring(0, 10), cx, cy + 3);
+    });
+
+    // Particles
+    if (Math.random() < 0.3) {
+      const targetIdx = Math.floor(Math.random() * companies.length);
+      const targetY = 20 + targetIdx * companySpacing + companySpacing / 2;
+      particles.push({
+        x: studentX + 20, y: studentY,
+        tx: canvas.width - 76, ty: targetY,
+        t: 0, speed: 0.01 + Math.random() * 0.02,
+        color: ['#58a6ff', '#3fb950', '#fbbf24', '#f0883e'][Math.floor(Math.random() * 4)],
+      });
+    }
+
+    particles = particles.filter(p => p.t < 1);
+    particles.forEach(p => {
+      p.t += p.speed;
+      const cx1 = (p.x + p.tx) / 2;
+      const cy1 = p.y + (Math.random() - 0.5) * 20;
+      const t = p.t;
+      const px = (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * cx1 + t * t * p.tx;
+      const py = (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * cy1 + t * t * p.ty;
+
+      animCtx.fillStyle = p.color;
+      animCtx.globalAlpha = 1 - p.t * 0.5;
+      animCtx.beginPath();
+      animCtx.arc(px, py, 3, 0, Math.PI * 2);
+      animCtx.fill();
+      animCtx.globalAlpha = 1;
+    });
+
+    animFrame = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+function stopAnimation() {
+  animActive = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+}
+
+// ===== START MATCHING =====
+window.startMatch = async function() {
+  if (matching) return;
+  matching = true;
+  const btn = document.getElementById('btn-match');
+  btn.textContent = 'Matching...';
+  btn.className = 'start-btn on';
+  btn.disabled = true;
+
+  const studentName = document.getElementById('student-name').value || 'Student';
+  const studentId = document.getElementById('student-id').value || 'STU001';
+  const gpa = parseFloat(document.getElementById('r-gpa').value);
+  const interest = document.getElementById('interest').value;
+  const studentVec = getStudentVector();
+  const checkedSkills = Array.from(document.querySelectorAll('#skill-grid input:checked')).map(c => c.value);
+
+  if (checkedSkills.length === 0) {
+    document.getElementById('ai-content').innerHTML = '<span style="color:#f87171">กรุณาเลือก skill อย่างน้อย 1 อย่าง</span>';
+    btn.textContent = 'Match Companies';
+    btn.className = 'start-btn off';
+    btn.disabled = false;
+    matching = false;
+    return;
+  }
+
+  // Start animation
+  startAnimation(studentName, COMPANIES);
+  document.getElementById('match-list').innerHTML = '';
+  document.getElementById('ai-content').innerHTML = '<span style="color:#484f58">Matching...</span>';
+
+  // Compute scores
+  await sleep(1500);
+  const results = COMPANIES.map(company => {
+    const compVec = getCompanyVector(company);
+    let similarity = cosineSimilarity(studentVec, compVec);
+
+    // Bonus for interest match
+    if (company.interests.includes(interest)) similarity = Math.min(1, similarity + 0.15);
+
+    // GPA penalty
+    if (gpa < company.minGpa) similarity *= 0.7;
+
+    // Overlap skills
+    const overlap = checkedSkills.filter(s => company.skills.includes(s));
+
+    return { company, similarity: Math.round(similarity * 100), overlap };
+  });
+
+  results.sort((a, b) => b.similarity - a.similarity);
+  matchResults = results;
+
+  // Stop animation
+  stopAnimation();
+
+  // Display results one by one
+  const listEl = document.getElementById('match-list');
+  listEl.innerHTML = '';
+  for (let i = 0; i < results.length; i++) {
+    await sleep(200);
+    addMatchCard(results[i], i);
+  }
+
+  // Update stats
+  totalMatches++;
+  allScores.push(results[0].similarity);
+  const topName = results[0].company.name;
+  companyWins[topName] = (companyWins[topName] || 0) + 1;
+  const topCompany = Object.entries(companyWins).sort((a, b) => b[1] - a[1])[0][0];
+
+  document.getElementById('s-matched').textContent = totalMatches;
+  const avgScore = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+  document.getElementById('s-avg').textContent = avgScore + '%';
+  document.getElementById('s-top').textContent = topCompany.substring(0, 8);
+
+  // Most demanded skill from student matches
+  const allOverlap = results.flatMap(r => r.overlap);
+  const skillCount = {};
+  allOverlap.forEach(s => { skillCount[s] = (skillCount[s] || 0) + 1; });
+  const topSkill = Object.entries(skillCount).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById('s-topskill').textContent = topSkill ? topSkill[0] : '-';
+
+  // Select top result
+  selectCompany(0);
+
+  // AI explanation
+  const explanation = generateMatchExplanation(results[0], checkedSkills, interest, gpa);
+  await typeAI(explanation);
+
+  // MQTT publish
+  if (mqttClient?.connected) {
+    mqttClient.publish('coop/match/' + studentId, JSON.stringify({
+      student_id: studentId,
+      matches: results.slice(0, 5).map(r => ({ company: r.company.name, score: r.similarity })),
+    }));
+  }
+
+  btn.textContent = 'Match Companies';
+  btn.className = 'start-btn off';
+  btn.disabled = false;
+  matching = false;
+};
+
+function addMatchCard(result, index) {
+  const listEl = document.getElementById('match-list');
+  const card = document.createElement('div');
+  card.className = 'match-card';
+  card.dataset.index = index;
+
+  const scoreClass = result.similarity >= 70 ? 'high' : result.similarity >= 40 ? 'medium' : 'low';
+  const barColor = result.similarity >= 70 ? '#3fb950' : result.similarity >= 40 ? '#fbbf24' : '#f87171';
+
+  const checkedSkills = Array.from(document.querySelectorAll('#skill-grid input:checked')).map(c => c.value);
+
+  let tagsHtml = '';
+  result.company.skills.forEach(s => {
+    const isOverlap = checkedSkills.includes(s);
+    tagsHtml += '<span class="match-tag' + (isOverlap ? ' overlap' : '') + '">' + s + '</span>';
+  });
+
+  card.innerHTML =
+    '<div class="match-header">' +
+      '<span class="match-company">' + result.company.name + '</span>' +
+      '<span class="match-score ' + scoreClass + '">' + result.similarity + '%</span>' +
+    '</div>' +
+    '<div class="match-bar-bg"><div class="match-bar-fill" style="width:' + result.similarity + '%;background:' + barColor + '"></div></div>' +
+    '<div class="match-tags">' + tagsHtml + '</div>';
+
+  card.addEventListener('click', () => selectCompany(index));
+  listEl.appendChild(card);
+}
+
+function selectCompany(index) {
+  const result = matchResults[index];
+  if (!result) return;
+  selectedCompany = result;
+
+  // Highlight card
+  document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
+  const card = document.querySelector('.match-card[data-index="' + index + '"]');
+  if (card) card.classList.add('selected');
+
+  const company = result.company;
+
+  // Update company detail
+  const detailEl = document.getElementById('company-detail');
+  let skillsHtml = '';
+  const checkedSkills = Array.from(document.querySelectorAll('#skill-grid input:checked')).map(c => c.value);
+  company.skills.forEach(s => {
+    const cls = checkedSkills.includes(s) ? 'required' : '';
+    skillsHtml += '<span class="cd-skill ' + cls + '">' + s + '</span>';
+  });
+
+  detailEl.innerHTML =
+    '<div class="cd-name">' + company.name + '</div>' +
+    '<div class="cd-row">Location: <span>' + company.location + '</span></div>' +
+    '<div class="cd-row">Min GPA: <span>' + company.minGpa.toFixed(2) + '</span></div>' +
+    '<div class="cd-row">' + company.desc + '</div>' +
+    '<div class="cd-row" style="margin-top:6px;">Benefits:</div>' +
+    '<div class="cd-row"><span>' + company.benefits.join(' / ') + '</span></div>' +
+    '<div style="margin-top:6px;font-size:0.7rem;color:#8b949e;">Required Skills:</div>' +
+    '<div class="cd-skills">' + skillsHtml + '</div>';
+
+  // Update radar chart
+  const allSkills = ['python', 'javascript', 'react', 'flutter', 'iot', 'ml', 'database', 'network', 'docker', 'java', 'go', 'figma'];
+  const studentVec = getStudentVector();
+  const compVec = getCompanyVector(company);
+
+  chart.data.labels = allSkills.filter((s, i) => studentVec[i] > 0 || compVec[i] > 0);
+  const filteredStudent = allSkills.reduce((arr, s, i) => {
+    if (studentVec[i] > 0 || compVec[i] > 0) arr.push(studentVec[i]);
+    return arr;
+  }, []);
+  const filteredCompany = allSkills.reduce((arr, s, i) => {
+    if (studentVec[i] > 0 || compVec[i] > 0) arr.push(compVec[i]);
+    return arr;
+  }, []);
+
+  chart.data.datasets[0].data = filteredStudent;
+  chart.data.datasets[1].data = filteredCompany;
+  chart.options.scales.r.max = 1;
+  chart.update();
+}
+
+function generateMatchExplanation(topResult, skills, interest, gpa) {
+  const company = topResult.company;
+  let text = 'จับคู่ "' + company.name + '" เป็นอันดับ 1 (Similarity ' + topResult.similarity + '%)\n\n';
+
+  text += 'เหตุผล:\n';
+  if (topResult.overlap.length > 0) {
+    text += '- Skill ตรงกัน: ' + topResult.overlap.join(', ') + '\n';
+  }
+  if (company.interests.includes(interest)) {
+    const interestNames = { web: 'Web Dev', mobile: 'Mobile', data: 'Data/AI', security: 'Security', iot: 'IoT', cloud: 'Cloud', network: 'Network' };
+    text += '- ความสนใจ ' + interestNames[interest] + ' ตรงกับบริษัท\n';
+  }
+  if (gpa >= company.minGpa) {
+    text += '- GPA ' + gpa.toFixed(2) + ' ผ่านเกณฑ์ขั้นต่ำ ' + company.minGpa.toFixed(2) + '\n';
+  } else {
+    text += '- GPA ' + gpa.toFixed(2) + ' ต่ำกว่าเกณฑ์ ' + company.minGpa.toFixed(2) + ' (ลดคะแนน)\n';
+  }
+
+  const missing = company.skills.filter(s => !skills.includes(s));
+  if (missing.length > 0) {
+    text += '\nSkill ที่ควรเรียนเพิ่ม: ' + missing.join(', ');
+  }
+
+  text += '\n\nที่ตั้ง: ' + company.location;
+  text += '\nเงินเดือน: ' + company.benefits[0];
+
+  return text;
+}
+
+async function typeAI(text) {
+  const el = document.getElementById('ai-content');
+  el.innerHTML = '';
+  const lines = text.split('\n');
+  let fullHtml = '';
+  for (const line of lines) {
+    for (let i = 0; i < line.length; i++) {
+      fullHtml += escapeHtml(line[i]);
+      el.innerHTML = fullHtml + '<span class="typing-cursor"></span>';
+      await sleep(12 + Math.random() * 12);
+    }
+    fullHtml += '<br>';
+    el.innerHTML = fullHtml + '<span class="typing-cursor"></span>';
+    await sleep(80);
+  }
+  el.innerHTML = fullHtml;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== INIT =====
+initMQTT();
+initAnimation();
+window.addEventListener('resize', initAnimation);
+</script>
+</body>
+</html>

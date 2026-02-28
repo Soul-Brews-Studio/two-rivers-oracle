@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV Bus Tracker — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .route-btns { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+  .route-btn {
+    padding: 10px 12px; border: 1px solid #30363d; border-radius: 8px;
+    background: #21262d; color: #8b949e; font-size: 0.8rem; cursor: pointer;
+    text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+  }
+  .route-btn:hover { border-color: #58a6ff; }
+  .route-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+  .route-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .route-btn .route-info { font-size: 0.65rem; color: #484f58; }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+
+  .bus-list { margin: 8px 0; }
+  .bus-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s;
+  }
+  .bus-card:hover { border-color: #58a6ff; }
+  .bus-card.selected { border-color: #3fb950; background: #0d1117; }
+  .bus-card .bus-header { display: flex; justify-content: space-between; align-items: center; }
+  .bus-card .bus-name { font-size: 0.85rem; font-weight: 600; }
+  .bus-card .bus-people { font-size: 0.85rem; font-weight: 700; }
+  .bus-card .bus-detail { font-size: 0.65rem; color: #8b949e; margin-top: 4px; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+
+  .chart-wrap { position: relative; height: 180px; margin-bottom: 12px; }
+
+  .prediction {
+    background: #1f3a5f; border: 1px solid #58a6ff; border-radius: 8px;
+    padding: 10px; font-size: 0.75rem; color: #58a6ff; margin: 8px 0;
+    line-height: 1.5;
+  }
+  .prediction .ai-tag {
+    display: inline-block; background: #58a6ff; color: #0d1117; font-size: 0.6rem;
+    font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-right: 4px;
+  }
+
+  .detail-panel {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px; margin: 8px 0; display: none;
+  }
+  .detail-panel.show { display: block; }
+  .detail-row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 3px 0; border-bottom: 1px solid #21262d; }
+  .detail-row .dlbl { color: #8b949e; }
+  .detail-row .dval { color: #e6edf3; font-weight: 600; }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+
+  #map { width: 100%; height: 100%; min-height: 400px; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="header">
+    <h1>EV Bus Tracker</h1>
+    <span class="sub">ระบบติดตามรถ EV + นับจำนวนคน — PSRU Campus</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Route Selector + Bus List -->
+  <div class="panel">
+    <h2>Routes</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <div class="route-btns" id="route-btns">
+      <button class="route-btn active" data-route="A">
+        <div class="route-dot" style="background:#f87171;"></div>
+        <div>
+          <div>สาย A: หอพัก → ห้องเรียน</div>
+          <div class="route-info">Dorm → Classroom Building</div>
+        </div>
+      </button>
+      <button class="route-btn" data-route="B">
+        <div class="route-dot" style="background:#fbbf24;"></div>
+        <div>
+          <div>สาย B: โรงอาหาร → ห้องสมุด</div>
+          <div class="route-info">Canteen → Library</div>
+        </div>
+      </button>
+      <button class="route-btn" data-route="C">
+        <div class="route-dot" style="background:#3fb950;"></div>
+        <div>
+          <div>สาย C: วงรอบมหาวิทยาลัย</div>
+          <div class="route-info">Campus Loop</div>
+        </div>
+      </button>
+    </div>
+
+    <button class="start-btn off" id="btn-sim" onclick="toggleSim()">Start Simulation</button>
+
+    <h3>Buses</h3>
+    <div class="bus-list" id="bus-list"></div>
+  </div>
+
+  <!-- CENTER: Map -->
+  <div class="panel" style="padding:8px;">
+    <div id="map"></div>
+  </div>
+
+  <!-- RIGHT: Stats + People Count + Predictions -->
+  <div class="panel">
+    <h2>Dashboard</h2>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-active">0</div><div class="lbl">Active Buses</div></div>
+      <div class="stat-card green"><div class="num" id="s-passengers">0</div><div class="lbl">Total Passengers</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-occupancy">0%</div><div class="lbl">Avg Occupancy</div></div>
+      <div class="stat-card red"><div class="num" id="s-busiest">-</div><div class="lbl">Busiest Route</div></div>
+    </div>
+
+    <h3>Bus Detail</h3>
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-row"><span class="dlbl">Bus ID</span><span class="dval" id="d-id">-</span></div>
+      <div class="detail-row"><span class="dlbl">Route</span><span class="dval" id="d-route">-</span></div>
+      <div class="detail-row"><span class="dlbl">People</span><span class="dval" id="d-people">-</span></div>
+      <div class="detail-row"><span class="dlbl">Capacity</span><span class="dval" id="d-capacity">-</span></div>
+      <div class="detail-row"><span class="dlbl">Next Stop</span><span class="dval" id="d-next">-</span></div>
+      <div class="detail-row"><span class="dlbl">ETA</span><span class="dval" id="d-eta">-</span></div>
+    </div>
+
+    <h3>Ridership Over Time</h3>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+
+    <h3>AI Prediction</h3>
+    <div class="prediction" id="prediction">
+      <span class="ai-tag">AI</span>
+      รอเริ่ม simulation เพื่อวิเคราะห์ข้อมูล...
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const CENTER = [16.8211, 100.2659];
+const BUS_CAPACITY = 30;
+
+// Route definitions with stops
+const ROUTE_CONFIG = {
+  A: {
+    color: '#f87171',
+    name: 'สาย A',
+    stops: [
+      { name: 'หอพัก',         lat: 16.8230, lng: 100.2680 },
+      { name: 'สนามกีฬา',      lat: 16.8225, lng: 100.2665 },
+      { name: 'อาคาร IT',      lat: 16.8225, lng: 100.2645 },
+      { name: 'อาคารเรียนรวม',  lat: 16.8215, lng: 100.2640 },
+      { name: 'อาคารวิศวะ',     lat: 16.8205, lng: 100.2635 },
+    ],
+  },
+  B: {
+    color: '#fbbf24',
+    name: 'สาย B',
+    stops: [
+      { name: 'โรงอาหาร',   lat: 16.8198, lng: 100.2660 },
+      { name: 'ศูนย์วิทย์',  lat: 16.8205, lng: 100.2665 },
+      { name: 'อาคารศิลปะ',  lat: 16.8210, lng: 100.2672 },
+      { name: 'ห้องสมุด',    lat: 16.8215, lng: 100.2670 },
+    ],
+  },
+  C: {
+    color: '#3fb950',
+    name: 'สาย C',
+    stops: [
+      { name: 'ประตูหน้า',     lat: 16.8195, lng: 100.2650 },
+      { name: 'โรงอาหาร',     lat: 16.8198, lng: 100.2660 },
+      { name: 'ห้องสมุด',      lat: 16.8215, lng: 100.2670 },
+      { name: 'หอพัก',         lat: 16.8230, lng: 100.2680 },
+      { name: 'อาคาร IT',     lat: 16.8225, lng: 100.2645 },
+      { name: 'อาคารวิศวะ',    lat: 16.8205, lng: 100.2635 },
+      { name: 'ประตูหน้า',     lat: 16.8195, lng: 100.2650 },
+    ],
+  },
+};
+
+// Bus definitions
+const BUSES = [
+  { id: 'EV-01', route: 'A', people: 12, pos: 0, speed: 1 },
+  { id: 'EV-02', route: 'A', people: 8,  pos: 0.5, speed: 1 },
+  { id: 'EV-03', route: 'B', people: 15, pos: 0.2, speed: 1 },
+  { id: 'EV-04', route: 'C', people: 20, pos: 0, speed: 0.8 },
+  { id: 'EV-05', route: 'C', people: 5,  pos: 0.4, speed: 0.9 },
+];
+
+// ===== STATE =====
+let mqttClient = null;
+let simRunning = false;
+let simTimer = null;
+let selectedBus = null;
+let selectedRoute = 'A';
+let totalPassengersToday = 0;
+let busMarkers = {};
+let routeLines = {};
+let stopMarkers = [];
+let chartData = { labels: [], A: [], B: [], C: [] };
+
+// ===== MAP SETUP =====
+const map = L.map('map', { zoomControl: false }).setView(CENTER, 16);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  maxZoom: 19,
+}).addTo(map);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// Draw route polylines
+function buildRoutePath(stops) {
+  const points = [];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const s1 = stops[i], s2 = stops[i + 1];
+    const steps = 20;
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      points.push([s1.lat + (s2.lat - s1.lat)*t, s1.lng + (s2.lng - s1.lng)*t]);
+    }
+  }
+  return points;
+}
+
+for (const [key, route] of Object.entries(ROUTE_CONFIG)) {
+  const path = buildRoutePath(route.stops);
+  routeLines[key] = L.polyline(path, {
+    color: route.color, weight: 3, opacity: 0.5, dashArray: '6 4',
+  }).addTo(map);
+
+  // Stop markers
+  route.stops.forEach((stop, i) => {
+    // Skip duplicates for loop route
+    if (key === 'C' && i === route.stops.length - 1) return;
+    const marker = L.circleMarker([stop.lat, stop.lng], {
+      radius: 5, color: route.color, fillColor: '#161b22', fillOpacity: 1, weight: 2,
+    }).addTo(map);
+    marker.bindTooltip(stop.name + ' (' + route.name + ')', { direction: 'top', offset: [0, -8] });
+    stopMarkers.push(marker);
+  });
+}
+
+// ===== INTERPOLATE BUS POSITION ON ROUTE =====
+function getBusLatLng(bus) {
+  const route = ROUTE_CONFIG[bus.route];
+  const stops = route.stops;
+  const totalSegments = stops.length - 1;
+  const pos = bus.pos * totalSegments;
+  const segIdx = Math.min(Math.floor(pos), totalSegments - 1);
+  const t = pos - segIdx;
+  const s1 = stops[segIdx];
+  const s2 = stops[Math.min(segIdx + 1, stops.length - 1)];
+  return [s1.lat + (s2.lat - s1.lat)*t, s1.lng + (s2.lng - s1.lng)*t];
+}
+
+// ===== GET NEXT STOP =====
+function getNextStop(bus) {
+  const stops = ROUTE_CONFIG[bus.route].stops;
+  const totalSegments = stops.length - 1;
+  const segIdx = Math.min(Math.floor(bus.pos * totalSegments) + 1, stops.length - 1);
+  return stops[segIdx];
+}
+
+// ===== CREATE BUS MARKERS =====
+function createBusMarkers() {
+  BUSES.forEach(bus => {
+    const color = ROUTE_CONFIG[bus.route].color;
+    const pos = getBusLatLng(bus);
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="position:relative;cursor:pointer;">' +
+        '<div style="width:28px;height:28px;background:' + color + ';border:2px solid #0d1117;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 8px ' + color + '50;">&#128652;</div>' +
+        '<div id="badge-' + bus.id + '" style="position:absolute;top:-6px;right:-6px;background:#e6edf3;color:#0d1117;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">' + bus.people + '</div>' +
+      '</div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+    const marker = L.marker(pos, { icon, zIndexOffset: 500 }).addTo(map);
+    marker.on('click', () => selectBus(bus.id));
+    busMarkers[bus.id] = marker;
+  });
+}
+
+// ===== UPDATE BUS ICON =====
+function updateBusIcon(bus) {
+  const color = ROUTE_CONFIG[bus.route].color;
+  const icon = L.divIcon({
+    className: '',
+    html: '<div style="position:relative;cursor:pointer;">' +
+      '<div style="width:28px;height:28px;background:' + color + ';border:2px solid #0d1117;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 8px ' + color + '50;">&#128652;</div>' +
+      '<div style="position:absolute;top:-6px;right:-6px;background:#e6edf3;color:#0d1117;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">' + bus.people + '</div>' +
+    '</div>',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+  busMarkers[bus.id].setIcon(icon);
+}
+
+// ===== BUS LIST =====
+function renderBusList() {
+  const list = document.getElementById('bus-list');
+  list.innerHTML = '';
+  BUSES.forEach(bus => {
+    const color = ROUTE_CONFIG[bus.route].color;
+    const pct = Math.round(bus.people / BUS_CAPACITY * 100);
+    const nextStop = getNextStop(bus);
+    const card = document.createElement('div');
+    card.className = 'bus-card' + (selectedBus === bus.id ? ' selected' : '');
+    card.onclick = () => selectBus(bus.id);
+    card.innerHTML =
+      '<div class="bus-header">' +
+        '<span class="bus-name" style="color:' + color + ';">' + bus.id + ' (' + ROUTE_CONFIG[bus.route].name + ')</span>' +
+        '<span class="bus-people" style="color:' + (pct > 80 ? '#f87171' : pct > 50 ? '#fbbf24' : '#3fb950') + ';">' + bus.people + '/' + BUS_CAPACITY + '</span>' +
+      '</div>' +
+      '<div class="bus-detail">Next: ' + nextStop.name + ' | ' + pct + '% full</div>';
+    list.appendChild(card);
+  });
+}
+
+// ===== SELECT BUS =====
+function selectBus(busId) {
+  selectedBus = busId;
+  const bus = BUSES.find(b => b.id === busId);
+  if (!bus) return;
+
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('show');
+
+  const nextStop = getNextStop(bus);
+  const eta = Math.round(5 + Math.random() * 10);
+
+  document.getElementById('d-id').textContent = bus.id;
+  document.getElementById('d-route').textContent = ROUTE_CONFIG[bus.route].name;
+  document.getElementById('d-people').textContent = bus.people + ' / ' + BUS_CAPACITY;
+  document.getElementById('d-capacity').textContent = Math.round(bus.people / BUS_CAPACITY * 100) + '%';
+  document.getElementById('d-next').textContent = nextStop.name;
+  document.getElementById('d-eta').textContent = eta + ' min';
+
+  renderBusList();
+
+  // Pan to bus
+  const pos = getBusLatLng(bus);
+  map.panTo(pos);
+}
+
+// ===== ROUTE BUTTONS =====
+document.getElementById('route-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.route-btn');
+  if (!btn) return;
+  document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedRoute = btn.dataset.route;
+
+  // Highlight selected route
+  for (const [key, line] of Object.entries(routeLines)) {
+    line.setStyle({ opacity: key === selectedRoute ? 0.8 : 0.25, weight: key === selectedRoute ? 4 : 2 });
+  }
+});
+
+// ===== CHART SETUP =====
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'สาย A', data: [], borderColor: '#f87171', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+      { label: 'สาย B', data: [], borderColor: '#fbbf24', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+      { label: 'สาย C', data: [], borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 200 },
+    scales: {
+      x: { display: false },
+      y: {
+        grid: { color: '#21262d' },
+        ticks: { color: '#8b949e', font: { size: 10 } },
+        min: 0, max: BUS_CAPACITY + 5,
+      },
+    },
+    plugins: {
+      legend: { labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 12 } },
+    },
+  },
+});
+
+// ===== SIMULATION TICK =====
+function simTick() {
+  const time = new Date().toLocaleTimeString('th-TH', { hour12: false });
+
+  // Move buses
+  BUSES.forEach(bus => {
+    const route = ROUTE_CONFIG[bus.route];
+    const totalSegments = route.stops.length - 1;
+    const increment = 0.008 * bus.speed;
+    const prevSegIdx = Math.floor(bus.pos * totalSegments);
+
+    bus.pos += increment;
+    if (bus.pos >= 1) {
+      bus.pos = 0;
+    }
+
+    const newSegIdx = Math.floor(bus.pos * totalSegments);
+
+    // At stop — boarding/alighting
+    if (newSegIdx !== prevSegIdx) {
+      const boarding = Math.floor(Math.random() * 8);
+      const alighting = Math.floor(Math.random() * Math.min(6, bus.people));
+      bus.people = Math.max(0, Math.min(BUS_CAPACITY, bus.people + boarding - alighting));
+      totalPassengersToday += boarding;
+    }
+
+    // Update marker position
+    const pos = getBusLatLng(bus);
+    busMarkers[bus.id].setLatLng(pos);
+    updateBusIcon(bus);
+
+    // Publish MQTT
+    if (mqttClient?.connected) {
+      mqttClient.publish('evbus/' + bus.id + '/position', JSON.stringify({
+        lat: pos[0], lng: pos[1],
+        route: bus.route,
+        people_count: bus.people,
+        capacity: BUS_CAPACITY,
+      }));
+    }
+  });
+
+  // Chart data
+  const routeA = BUSES.filter(b => b.route === 'A').reduce((s,b) => s + b.people, 0) / Math.max(1, BUSES.filter(b => b.route === 'A').length);
+  const routeB = BUSES.filter(b => b.route === 'B').reduce((s,b) => s + b.people, 0) / Math.max(1, BUSES.filter(b => b.route === 'B').length);
+  const routeC = BUSES.filter(b => b.route === 'C').reduce((s,b) => s + b.people, 0) / Math.max(1, BUSES.filter(b => b.route === 'C').length);
+
+  chart.data.labels.push(time);
+  chart.data.datasets[0].data.push(routeA);
+  chart.data.datasets[1].data.push(routeB);
+  chart.data.datasets[2].data.push(routeC);
+  if (chart.data.labels.length > 60) {
+    chart.data.labels.shift();
+    chart.data.datasets.forEach(d => d.data.shift());
+  }
+  chart.update('none');
+
+  // Update stats
+  const activeBuses = BUSES.length;
+  const totalPeople = BUSES.reduce((s,b) => s + b.people, 0);
+  const avgOccupancy = Math.round(totalPeople / (activeBuses * BUS_CAPACITY) * 100);
+
+  // Find busiest route
+  const routeTotals = { A: 0, B: 0, C: 0 };
+  BUSES.forEach(b => { routeTotals[b.route] += b.people; });
+  const busiest = Object.entries(routeTotals).sort((a,b) => b[1] - a[1])[0][0];
+
+  document.getElementById('s-active').textContent = activeBuses;
+  document.getElementById('s-passengers').textContent = totalPassengersToday;
+  document.getElementById('s-occupancy').textContent = avgOccupancy + '%';
+  document.getElementById('s-busiest').textContent = ROUTE_CONFIG[busiest].name;
+
+  // Update selected bus detail
+  if (selectedBus) {
+    selectBus(selectedBus);
+  }
+  renderBusList();
+
+  // AI prediction
+  updatePrediction(routeTotals, avgOccupancy);
+}
+
+// ===== AI PREDICTION =====
+let predictionCounter = 0;
+function updatePrediction(totals, avgOcc) {
+  predictionCounter++;
+  if (predictionCounter % 5 !== 0) return; // Update every 5 ticks
+
+  const predictions = [];
+  const busiest = Object.entries(totals).sort((a,b) => b[1] - a[1])[0];
+  const busiestName = ROUTE_CONFIG[busiest[0]].name;
+
+  if (avgOcc > 70) {
+    predictions.push(busiestName + ' จะเต็มใน 10 นาที ควรเพิ่มรอบ');
+  } else if (avgOcc > 50) {
+    predictions.push(busiestName + ' มีผู้โดยสารหนาแน่น — แนะนำเตรียมรถสำรอง');
+  } else {
+    predictions.push('ทุกสายมีที่ว่างเพียงพอ — ระบบทำงานปกติ');
+  }
+
+  // Time-based prediction
+  const hour = new Date().getHours();
+  if (hour >= 7 && hour <= 9) {
+    predictions.push('ช่วงเวลาเร่งด่วนเช้า — คาดว่าผู้โดยสารจะเพิ่มขึ้น 30%');
+  } else if (hour >= 16 && hour <= 18) {
+    predictions.push('ช่วงเลิกเรียน — สาย A (หอพัก) จะมีคนเพิ่มขึ้น');
+  }
+
+  // Specific bus warning
+  BUSES.forEach(b => {
+    if (b.people >= BUS_CAPACITY * 0.85) {
+      predictions.push(b.id + ' (' + ROUTE_CONFIG[b.route].name + ') เกือบเต็ม — ' + b.people + '/' + BUS_CAPACITY + ' คน');
+    }
+  });
+
+  const pred = document.getElementById('prediction');
+  pred.innerHTML = '<span class="ai-tag">AI</span> ' + predictions.slice(0, 2).join('<br><span class="ai-tag">AI</span> ');
+}
+
+// ===== TOGGLE SIM =====
+window.toggleSim = function() {
+  const btn = document.getElementById('btn-sim');
+  if (simRunning) {
+    simRunning = false;
+    clearInterval(simTimer);
+    btn.textContent = 'Start Simulation';
+    btn.className = 'start-btn off';
+  } else {
+    simRunning = true;
+    simTimer = setInterval(simTick, 800);
+    btn.textContent = 'Stop Simulation';
+    btn.className = 'start-btn on';
+  }
+};
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+    mqttClient.subscribe('evbus/+/position');
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== INIT =====
+initMQTT();
+createBusMarkers();
+renderBusList();
+setTimeout(() => {
+  map.invalidateSize();
+  // Highlight route A by default
+  for (const [key, line] of Object.entries(routeLines)) {
+    line.setStyle({ opacity: key === 'A' ? 0.8 : 0.25, weight: key === 'A' ? 4 : 2 });
+  }
+}, 200);
+</script>
+</body>
+</html>

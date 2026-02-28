@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UR3 Box Assembly — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  input[type="text"], input[type="range"] { width: 100%; }
+  input[type="text"] {
+    padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+  input[type="range"] { accent-color: #58a6ff; }
+  .val { float: right; color: #58a6ff; font-weight: 600; font-size: 0.75rem; }
+
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .preset-btn {
+    padding: 8px 4px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: #58a6ff; }
+  .preset-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+  .preset-btn.active.danger { background: #3d1f1f; border-color: #f87171; color: #f87171; }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .viz-wrap {
+    display: flex; justify-content: center; margin-bottom: 12px;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 0;
+  }
+  .viz-wrap canvas { display: block; }
+
+  .chart-wrap { position: relative; height: 180px; margin-bottom: 12px; }
+
+  .feed { max-height: 200px; overflow-y: auto; font-size: 0.7rem; font-family: monospace; }
+  .feed-entry { padding: 3px 6px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; }
+  .feed-entry .ts { color: #484f58; flex-shrink: 0; }
+  .feed-entry .val-col { min-width: 50px; }
+  .feed-entry .info { color: #8b949e; }
+  .feed-entry.pass .val-col { color: #3fb950; }
+  .feed-entry.fail .val-col { color: #f87171; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+
+  .accuracy-bar {
+    display: flex; align-items: center; gap: 8px; margin: 6px 0;
+  }
+  .accuracy-bar .bar-bg {
+    flex: 1; height: 12px; background: #21262d; border-radius: 6px; overflow: hidden;
+    border: 1px solid #30363d;
+  }
+  .accuracy-bar .bar-fill { height: 100%; border-radius: 6px; transition: width 0.3s; background: #3fb950; }
+  .accuracy-bar .pct { font-size: 0.8rem; font-weight: 700; color: #3fb950; min-width: 45px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>UR3 Box Assembly</h1>
+    <span class="sub">หุ่นยนต์พับกล่อง + AI ตรวจสอบ</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Controls -->
+  <div class="panel" id="controls-panel">
+    <h2>Robot Config</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">Robot ID</label>
+    <input type="text" id="robot-id" value="UR3-001" maxlength="20">
+
+    <label class="ctrl">Speed <span class="val" id="v-speed">5 boxes/min</span></label>
+    <input type="range" id="r-speed" min="1" max="15" step="1" value="5">
+
+    <label class="ctrl">Defect Rate <span class="val" id="v-defect">5%</span></label>
+    <input type="range" id="r-defect" min="0" max="50" step="1" value="5">
+
+    <label class="ctrl">Wrong Orient. Rate <span class="val" id="v-orient">3%</span></label>
+    <input type="range" id="r-orient" min="0" max="30" step="1" value="3">
+
+    <label class="ctrl">Publish Interval <span class="val" id="v-interval">2000 ms</span></label>
+    <input type="range" id="r-interval" min="500" max="10000" step="100" value="2000">
+
+    <h3>Modes</h3>
+    <div class="preset-grid" id="preset-grid">
+      <button class="preset-btn active" data-preset="normal">Normal<br><small>ทำงานปกติ</small></button>
+      <button class="preset-btn" data-preset="orient">Wrong Orient.<br><small>วางผิดด้าน</small></button>
+      <button class="preset-btn" data-preset="damaged">Damaged Box<br><small>กล่องเสียหาย</small></button>
+      <button class="preset-btn" data-preset="fast">High Speed<br><small>เร็วสุด</small></button>
+      <button class="preset-btn" data-preset="jam">Conveyor Jam<br><small>สายพานติด</small></button>
+    </div>
+
+    <button class="start-btn off" id="btn-start" onclick="togglePublish()">Start Robot</button>
+  </div>
+
+  <!-- CENTER: Visualization -->
+  <div class="panel">
+    <h2>Robot Arm + Conveyor</h2>
+    <div class="viz-wrap"><div id="viz-container"></div></div>
+
+    <h2>Accuracy</h2>
+    <div class="accuracy-bar">
+      <div class="bar-bg"><div class="bar-fill" id="acc-bar" style="width:100%"></div></div>
+      <span class="pct" id="acc-pct">100%</span>
+    </div>
+
+    <h2 style="margin-top:8px;">Inspection History</h2>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+
+    <h3>Live Feed</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- RIGHT: Stats -->
+  <div class="panel">
+    <h2>QC Statistics</h2>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-total">0</div><div class="lbl">Total Inspected</div></div>
+      <div class="stat-card green"><div class="num" id="s-pass">100%</div><div class="lbl">Pass Rate</div></div>
+      <div class="stat-card red"><div class="num" id="s-defects">0</div><div class="lbl">Defects Found</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-orient">0</div><div class="lbl">Wrong Orient.</div></div>
+      <div class="stat-card blue"><div class="num" id="s-speed">0</div><div class="lbl">Boxes/min</div></div>
+      <div class="stat-card green"><div class="num" id="s-uptime">0:00</div><div class="lbl">Uptime</div></div>
+    </div>
+
+    <h3>Defect Types</h3>
+    <div style="font-size:0.7rem;color:#8b949e;margin-bottom:8px;">
+      <div>Dented: <span style="color:#f87171" id="d-dented">0</span></div>
+      <div>Torn: <span style="color:#f87171" id="d-torn">0</span></div>
+      <div>Wet/Stained: <span style="color:#f87171" id="d-wet">0</span></div>
+      <div>Wrong label: <span style="color:#fbbf24" id="d-label">0</span></div>
+    </div>
+
+    <h3>Defect Log</h3>
+    <div class="feed" id="defect-feed" style="max-height:250px;"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const MAX_CHART_POINTS = 60;
+const MAX_FEED = 30;
+
+// ===== STATE =====
+let mqttClient = null;
+let publishing = false;
+let pubTimer = null;
+let startTime = null;
+let mode = 'normal';
+let boxCounter = 0;
+let stats = { total: 0, passed: 0, defects: 0, orient: 0 };
+let defectTypes = { dented: 0, torn: 0, wet: 0, label: 0 };
+let jammed = false;
+
+// Conveyor / Robot animation state
+let boxes = [];
+let armAngle1 = -0.3;
+let armAngle2 = 0.5;
+let armTarget = null;
+let armPhase = 'idle'; // idle, reaching, lifting, inspecting, placing
+let heldBox = null;
+let inspectResult = null;
+let animTimer = 0;
+
+// ===== SLIDER BINDINGS =====
+const sliders = [
+  ['r-speed', 'v-speed', v => v + ' boxes/min', 0],
+  ['r-defect', 'v-defect', v => v + '%', 0],
+  ['r-orient', 'v-orient', v => v + '%', 0],
+  ['r-interval', 'v-interval', v => v + ' ms', 0],
+];
+for (const [rid, vid, fmt, dec] of sliders) {
+  const r = document.getElementById(rid);
+  const v = document.getElementById(vid);
+  r.addEventListener('input', () => { v.textContent = fmt(parseFloat(r.value).toFixed(dec)); });
+}
+
+// ===== PRESET BUTTONS =====
+document.getElementById('preset-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.preset-btn');
+  if (!btn) return;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active','danger'));
+  btn.classList.add('active');
+  const preset = btn.dataset.preset;
+  jammed = false;
+
+  switch (preset) {
+    case 'normal':
+      mode = 'normal';
+      document.getElementById('r-speed').value = 5;
+      document.getElementById('v-speed').textContent = '5 boxes/min';
+      document.getElementById('r-defect').value = 5;
+      document.getElementById('v-defect').textContent = '5%';
+      document.getElementById('r-orient').value = 3;
+      document.getElementById('v-orient').textContent = '3%';
+      break;
+    case 'orient':
+      mode = 'orient';
+      document.getElementById('r-orient').value = 25;
+      document.getElementById('v-orient').textContent = '25%';
+      break;
+    case 'damaged':
+      mode = 'damaged';
+      document.getElementById('r-defect').value = 30;
+      document.getElementById('v-defect').textContent = '30%';
+      break;
+    case 'fast':
+      mode = 'fast';
+      document.getElementById('r-speed').value = 15;
+      document.getElementById('v-speed').textContent = '15 boxes/min';
+      break;
+    case 'jam':
+      mode = 'jam';
+      jammed = true;
+      btn.classList.add('danger');
+      break;
+  }
+});
+
+// ===== CHART SETUP =====
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: 'Pass',
+        data: [], backgroundColor: 'rgba(63,185,80,0.6)',
+        borderColor: '#3fb950', borderWidth: 1,
+      },
+      {
+        label: 'Defect',
+        data: [], backgroundColor: 'rgba(248,113,113,0.6)',
+        borderColor: '#f87171', borderWidth: 1,
+      },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 200 },
+    scales: {
+      x: { display: false, stacked: true },
+      y: { stacked: true, grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 } } },
+    },
+    plugins: {
+      legend: { labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 12 } },
+    },
+  },
+});
+
+// ===== P5.JS ROBOT ARM + CONVEYOR =====
+const vizSketch = new p5(function(p) {
+  const W = 500, H = 400;
+  const conveyorY = 310;
+  const armBaseX = 200, armBaseY = conveyorY - 10;
+  const seg1 = 80, seg2 = 70;
+
+  p.setup = function() {
+    p.createCanvas(W, H);
+    p.frameRate(30);
+  };
+
+  p.draw = function() {
+    p.clear();
+    p.background(13, 17, 23);
+    const time = p.millis() / 1000;
+    animTimer += 1/30;
+
+    // ── Floor ──
+    p.noStroke();
+    p.fill(30, 35, 42);
+    p.rect(0, conveyorY + 30, W, H - conveyorY - 30);
+
+    // ── Conveyor belt ──
+    p.fill(55, 65, 81);
+    p.rect(0, conveyorY, W, 30, 4);
+    // Belt tracks
+    p.stroke(75, 85, 99);
+    p.strokeWeight(1);
+    const beltOffset = jammed ? 0 : (time * 40) % 20;
+    for (let x = -20 + beltOffset; x < W; x += 20) {
+      p.line(x, conveyorY + 5, x, conveyorY + 25);
+    }
+    p.noStroke();
+
+    // ── Conveyor rollers ──
+    p.fill(75, 85, 99);
+    p.circle(30, conveyorY + 15, 20);
+    p.circle(W - 30, conveyorY + 15, 20);
+    p.fill(55, 65, 81);
+    p.circle(30, conveyorY + 15, 8);
+    p.circle(W - 30, conveyorY + 15, 8);
+
+    // ── Move boxes ──
+    if (!jammed) {
+      for (let i = boxes.length - 1; i >= 0; i--) {
+        const b = boxes[i];
+        if (!b.held) b.x += 0.5;
+        if (b.x > W + 50) boxes.splice(i, 1);
+      }
+    }
+
+    // ── Spawn boxes ──
+    const spawnRate = parseFloat(document.getElementById('r-speed').value);
+    const spawnInterval = 60 / spawnRate;
+    if (!jammed && publishing && animTimer > spawnInterval) {
+      animTimer = 0;
+      boxCounter++;
+      const defectRate = parseFloat(document.getElementById('r-defect').value) / 100;
+      const orientRate = parseFloat(document.getElementById('r-orient').value) / 100;
+      let boxType = 'normal';
+      const roll = Math.random();
+      if (roll < defectRate) {
+        boxType = 'defect';
+      } else if (roll < defectRate + orientRate) {
+        boxType = 'orient';
+      }
+      boxes.push({
+        id: 'BOX-' + String(boxCounter).padStart(4, '0'),
+        x: -30, y: conveyorY - 25,
+        w: 30, h: 25,
+        type: boxType,
+        held: false,
+        inspected: false,
+        result: null,
+      });
+    }
+
+    // ── Draw boxes on conveyor ──
+    for (const b of boxes) {
+      if (b.held) continue;
+      p.push();
+      if (b.type === 'defect') {
+        p.fill(180, 80, 80);
+      } else if (b.type === 'orient') {
+        p.fill(180, 160, 80);
+      } else {
+        p.fill(160, 140, 110);
+      }
+      p.rect(b.x, b.y, b.w, b.h, 3);
+      // Box flaps
+      p.fill(140, 120, 90);
+      p.rect(b.x, b.y, b.w, 5, 2, 2, 0, 0);
+      // Label
+      if (b.type === 'orient') {
+        p.fill(255, 200, 50);
+        p.textSize(7);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.text('FLIP', b.x + b.w / 2, b.y + b.h / 2);
+      }
+      // Defect mark
+      if (b.type === 'defect') {
+        p.stroke(248, 113, 113);
+        p.strokeWeight(2);
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        p.line(cx - 5, cy - 5, cx + 5, cy + 5);
+        p.line(cx + 5, cy - 5, cx - 5, cy + 5);
+        p.noStroke();
+      }
+      // Inspection result overlay
+      if (b.result === 'pass') {
+        p.fill(63, 185, 80, 60);
+        p.rect(b.x, b.y, b.w, b.h, 3);
+      } else if (b.result === 'fail') {
+        p.fill(248, 113, 113, 80);
+        p.rect(b.x, b.y, b.w, b.h, 3);
+        p.stroke(248, 113, 113);
+        p.strokeWeight(2);
+        p.noFill();
+        p.rect(b.x - 2, b.y - 2, b.w + 4, b.h + 4, 4);
+        p.noStroke();
+      }
+      p.pop();
+    }
+
+    // ── Robot arm logic ──
+    // Find uninspected box near inspection zone
+    const inspectZone = armBaseX + 60;
+    if (armPhase === 'idle' && !jammed) {
+      for (const b of boxes) {
+        if (!b.inspected && !b.held && b.x > inspectZone - 20 && b.x < inspectZone + 20) {
+          armTarget = b;
+          armPhase = 'reaching';
+          break;
+        }
+      }
+    }
+
+    // Arm angles for different phases
+    let targetA1, targetA2;
+    const reachAngle = armTarget ? Math.atan2(armTarget.y - armBaseY, armTarget.x - armBaseX) : -0.8;
+
+    switch (armPhase) {
+      case 'reaching':
+        targetA1 = -0.6;
+        targetA2 = 0.8;
+        armAngle1 += (targetA1 - armAngle1) * 0.1;
+        armAngle2 += (targetA2 - armAngle2) * 0.1;
+        if (Math.abs(armAngle1 - targetA1) < 0.05) {
+          armPhase = 'lifting';
+          if (armTarget) { armTarget.held = true; heldBox = armTarget; }
+        }
+        break;
+      case 'lifting':
+        targetA1 = -1.2;
+        targetA2 = 0.4;
+        armAngle1 += (targetA1 - armAngle1) * 0.08;
+        armAngle2 += (targetA2 - armAngle2) * 0.08;
+        if (Math.abs(armAngle1 - targetA1) < 0.05) {
+          armPhase = 'inspecting';
+          // Determine result
+          if (heldBox) {
+            heldBox.inspected = true;
+            if (heldBox.type === 'normal') {
+              heldBox.result = 'pass';
+              inspectResult = 'PASS';
+            } else {
+              heldBox.result = 'fail';
+              inspectResult = heldBox.type === 'defect' ? 'DEFECT' : 'ORIENT';
+            }
+          }
+          setTimeout(() => { armPhase = 'placing'; }, 600);
+        }
+        break;
+      case 'inspecting':
+        // Hold position
+        break;
+      case 'placing':
+        targetA1 = -0.4;
+        targetA2 = 0.6;
+        armAngle1 += (targetA1 - armAngle1) * 0.1;
+        armAngle2 += (targetA2 - armAngle2) * 0.1;
+        if (Math.abs(armAngle1 - targetA1) < 0.05) {
+          if (heldBox) {
+            heldBox.held = false;
+            heldBox.x = heldBox.result === 'pass' ? armBaseX + 80 : armBaseX - 60;
+            heldBox = null;
+          }
+          armPhase = 'idle';
+          armTarget = null;
+          inspectResult = null;
+        }
+        break;
+      default:
+        targetA1 = -0.8;
+        targetA2 = 0.3;
+        armAngle1 += (targetA1 - armAngle1) * 0.05;
+        armAngle2 += (targetA2 - armAngle2) * 0.05;
+    }
+
+    // ── Draw robot arm ──
+    // Base
+    p.fill(75, 85, 99);
+    p.rect(armBaseX - 20, armBaseY - 10, 40, 40, 4);
+    p.fill(55, 65, 81);
+    p.rect(armBaseX - 25, armBaseY + 20, 50, 15, 4);
+
+    // Segment 1
+    const j1x = armBaseX;
+    const j1y = armBaseY - 10;
+    const j2x = j1x + Math.cos(armAngle1) * seg1;
+    const j2y = j1y + Math.sin(armAngle1) * seg1;
+
+    p.stroke(107, 114, 128);
+    p.strokeWeight(12);
+    p.line(j1x, j1y, j2x, j2y);
+
+    // Segment 2
+    const a2global = armAngle1 + armAngle2;
+    const j3x = j2x + Math.cos(a2global) * seg2;
+    const j3y = j2y + Math.sin(a2global) * seg2;
+
+    p.stroke(139, 148, 158);
+    p.strokeWeight(10);
+    p.line(j2x, j2y, j3x, j3y);
+    p.noStroke();
+
+    // Joints
+    p.fill(88, 166, 255);
+    p.circle(j1x, j1y, 14);
+    p.fill(75, 85, 99);
+    p.circle(j1x, j1y, 8);
+    p.fill(88, 166, 255);
+    p.circle(j2x, j2y, 10);
+    p.fill(75, 85, 99);
+    p.circle(j2x, j2y, 6);
+
+    // Gripper
+    p.fill(139, 148, 158);
+    p.push();
+    p.translate(j3x, j3y);
+    p.rotate(a2global);
+    p.rect(0, -4, 15, 3);
+    p.rect(0, 1, 15, 3);
+    // Gripper tips
+    if (heldBox) {
+      p.fill(88, 166, 255);
+    } else {
+      p.fill(107, 114, 128);
+    }
+    p.rect(12, -6, 4, 4, 1);
+    p.rect(12, 2, 4, 4, 1);
+    p.pop();
+
+    // Draw held box at gripper
+    if (heldBox) {
+      p.push();
+      if (heldBox.type === 'defect') p.fill(180, 80, 80);
+      else if (heldBox.type === 'orient') p.fill(180, 160, 80);
+      else p.fill(160, 140, 110);
+      p.rect(j3x + 5, j3y - 12, 25, 20, 3);
+      p.pop();
+    }
+
+    // ── Inspection result text ──
+    if (inspectResult && armPhase === 'inspecting') {
+      p.textAlign(p.CENTER, p.CENTER);
+      p.textSize(16);
+      p.textStyle(p.BOLD);
+      if (inspectResult === 'PASS') {
+        p.fill(63, 185, 80);
+        p.text('PASS', j3x, j3y - 30);
+      } else {
+        p.fill(248, 113, 113);
+        p.text(inspectResult, j3x, j3y - 30);
+      }
+      p.textStyle(p.NORMAL);
+      // Scan lines
+      p.stroke(88, 166, 255, 40 + Math.sin(time * 8) * 30);
+      p.strokeWeight(1);
+      for (let i = 0; i < 5; i++) {
+        const sy = j3y - 10 + i * 5 + Math.sin(time * 4 + i) * 2;
+        p.line(j3x - 15, sy, j3x + 30, sy);
+      }
+      p.noStroke();
+    }
+
+    // ── Bins ──
+    // Pass bin (right)
+    p.fill(34, 60, 34);
+    p.rect(W - 80, conveyorY - 30, 60, 60, 4);
+    p.fill(63, 185, 80);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.textSize(10);
+    p.text('PASS', W - 50, conveyorY);
+
+    // Reject bin (left)
+    p.fill(60, 34, 34);
+    p.rect(20, conveyorY - 30, 60, 60, 4);
+    p.fill(248, 113, 113);
+    p.text('REJECT', 50, conveyorY);
+
+    // ── Jam indicator ──
+    if (jammed) {
+      p.fill(248, 113, 113, 150 + Math.sin(time * 4) * 100);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.textSize(20);
+      p.textStyle(p.BOLD);
+      p.text('JAMMED', W / 2, 30);
+      p.textStyle(p.NORMAL);
+
+      p.fill(248, 113, 113, 30);
+      p.rect(0, conveyorY, W, 30);
+    }
+
+    // ── UR3 label ──
+    p.fill(139, 148, 158);
+    p.textAlign(p.CENTER, p.TOP);
+    p.textSize(10);
+    p.text('UR3 Robot Arm', armBaseX, armBaseY + 40);
+
+    p.noStroke();
+  };
+}, document.getElementById('viz-container'));
+
+// ===== PUBLISH =====
+function publishReading() {
+  if (jammed) return;
+
+  const robotId = document.getElementById('robot-id').value || 'UR3-001';
+  const defectRate = parseFloat(document.getElementById('r-defect').value) / 100;
+  const orientRate = parseFloat(document.getElementById('r-orient').value) / 100;
+  const speed = parseFloat(document.getElementById('r-speed').value);
+  const ts = Date.now();
+  const now = new Date(ts);
+  const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+
+  stats.total++;
+  boxCounter++;
+  const boxId = 'BOX-' + String(boxCounter).padStart(4, '0');
+
+  // Determine result
+  let result = 'pass';
+  let defectType = null;
+  const roll = Math.random();
+  if (roll < defectRate) {
+    result = 'defect';
+    const dtypes = ['dented', 'torn', 'wet', 'label'];
+    defectType = dtypes[Math.floor(Math.random() * dtypes.length)];
+    stats.defects++;
+    defectTypes[defectType]++;
+  } else if (roll < defectRate + orientRate) {
+    result = 'wrong_orientation';
+    stats.orient++;
+  } else {
+    stats.passed++;
+  }
+
+  const action = result === 'pass' ? 'place_pass' : 'place_reject';
+
+  const payload = {
+    action: action,
+    box_id: boxId,
+    result: result,
+    defect_type: defectType,
+    speed_bpm: speed,
+    timestamp: ts,
+  };
+
+  if (mqttClient?.connected) {
+    mqttClient.publish('robot/' + robotId + '/action', JSON.stringify(payload));
+  }
+
+  // Update chart
+  chart.data.labels.push(timeStr);
+  chart.data.datasets[0].data.push(result === 'pass' ? 1 : 0);
+  chart.data.datasets[1].data.push(result !== 'pass' ? 1 : 0);
+  if (chart.data.labels.length > MAX_CHART_POINTS) {
+    chart.data.labels.shift();
+    chart.data.datasets.forEach(d => d.data.shift());
+  }
+  chart.update('none');
+
+  // Feed
+  const cls = result === 'pass' ? 'pass' : 'fail';
+  addFeedEntry(timeStr, boxId, result, defectType, cls);
+  if (result !== 'pass') {
+    addDefectEntry(timeStr, boxId, result, defectType);
+  }
+  updateStats();
+}
+
+// ===== FEED =====
+function addFeedEntry(time, boxId, result, defectType, cls) {
+  const feed = document.getElementById('feed');
+  const el = document.createElement('div');
+  el.className = 'feed-entry ' + cls;
+  const resultText = result === 'pass' ? 'PASS' : result === 'wrong_orientation' ? 'ORIENT' : 'DEFECT';
+  const detail = defectType ? ' (' + defectType + ')' : '';
+  el.innerHTML = '<span class="ts">' + time + '</span><span class="val-col">' + resultText + '</span><span class="info">' + boxId + detail + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+}
+
+function addDefectEntry(time, boxId, result, defectType) {
+  const feed = document.getElementById('defect-feed');
+  const el = document.createElement('div');
+  el.className = 'feed-entry fail';
+  const detail = defectType || result;
+  el.innerHTML = '<span class="ts">' + time + '</span><span class="val-col" style="color:#f87171">' + detail + '</span><span class="info">' + boxId + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = stats.total;
+  const passRate = stats.total > 0 ? ((stats.passed / stats.total) * 100).toFixed(1) : 100;
+  document.getElementById('s-pass').textContent = passRate + '%';
+  document.getElementById('s-defects').textContent = stats.defects;
+  document.getElementById('s-orient').textContent = stats.orient;
+  document.getElementById('s-speed').textContent = document.getElementById('r-speed').value;
+
+  // Uptime
+  if (startTime) {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const min = Math.floor(elapsed / 60);
+    const sec = elapsed % 60;
+    document.getElementById('s-uptime').textContent = min + ':' + String(sec).padStart(2, '0');
+  }
+
+  // Accuracy bar
+  document.getElementById('acc-bar').style.width = passRate + '%';
+  document.getElementById('acc-pct').textContent = passRate + '%';
+  if (passRate >= 90) {
+    document.getElementById('acc-bar').style.background = '#3fb950';
+    document.getElementById('acc-pct').style.color = '#3fb950';
+  } else if (passRate >= 70) {
+    document.getElementById('acc-bar').style.background = '#fbbf24';
+    document.getElementById('acc-pct').style.color = '#fbbf24';
+  } else {
+    document.getElementById('acc-bar').style.background = '#f87171';
+    document.getElementById('acc-pct').style.color = '#f87171';
+  }
+
+  // Defect types
+  document.getElementById('d-dented').textContent = defectTypes.dented;
+  document.getElementById('d-torn').textContent = defectTypes.torn;
+  document.getElementById('d-wet').textContent = defectTypes.wet;
+  document.getElementById('d-label').textContent = defectTypes.label;
+}
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== START / STOP =====
+window.togglePublish = function() {
+  const btn = document.getElementById('btn-start');
+  if (publishing) {
+    publishing = false;
+    clearInterval(pubTimer);
+    btn.textContent = 'Start Robot';
+    btn.className = 'start-btn off';
+  } else {
+    publishing = true;
+    startTime = Date.now();
+    const interval = parseInt(document.getElementById('r-interval').value);
+    pubTimer = setInterval(publishReading, interval);
+    btn.textContent = 'Stop Robot';
+    btn.className = 'start-btn on';
+    stats = { total: 0, passed: 0, defects: 0, orient: 0 };
+    defectTypes = { dented: 0, torn: 0, wet: 0, label: 0 };
+    boxCounter = 0;
+    boxes = [];
+    updateStats();
+  }
+};
+
+// ===== URL PARAMS =====
+const params = new URLSearchParams(window.location.search);
+if (params.get('id')) document.getElementById('robot-id').value = params.get('id');
+if (params.get('auto')) setTimeout(() => togglePublish(), 500);
+
+// ===== INIT =====
+initMQTT();
+</script>
+</body>
+</html>

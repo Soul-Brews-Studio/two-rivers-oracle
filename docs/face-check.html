@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face-Check Simulator — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  input[type="range"] { width: 100%; accent-color: #58a6ff; }
+  .val { float: right; color: #58a6ff; font-weight: 600; font-size: 0.75rem; }
+
+  select.ctrl-select {
+    width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem; margin: 4px 0;
+  }
+
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .preset-btn {
+    padding: 8px 4px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: #58a6ff; }
+  .preset-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+  .preset-btn.danger.active { background: #3d1f1f; border-color: #f87171; color: #f87171; }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .viz-wrap {
+    display: flex; justify-content: center;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 0; margin-bottom: 12px;
+  }
+  .viz-wrap canvas { display: block; }
+
+  .result-box {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 14px; margin: 8px 0; text-align: center; min-height: 60px;
+  }
+  .result-box .result-icon { font-size: 2rem; }
+  .result-box .result-text { font-size: 0.9rem; margin-top: 4px; }
+  .result-box.success { border-color: #3fb950; }
+  .result-box.success .result-text { color: #3fb950; }
+  .result-box.fail { border-color: #f87171; }
+  .result-box.fail .result-text { color: #f87171; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+  .stat-card.purple .num { color: #bc8cff; }
+
+  .conf-meter {
+    height: 24px; background: #21262d; border-radius: 12px; overflow: hidden;
+    margin: 8px 0; position: relative;
+  }
+  .conf-meter .fill {
+    height: 100%; border-radius: 12px; transition: width 0.4s;
+    background: linear-gradient(90deg, #f87171, #fbbf24, #3fb950);
+  }
+  .conf-meter .label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 0.7rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
+  .attendance-table {
+    width: 100%; border-collapse: collapse; font-size: 0.65rem; margin: 8px 0;
+  }
+  .attendance-table th {
+    background: #21262d; color: #8b949e; padding: 6px 4px; text-align: left;
+    border-bottom: 1px solid #30363d;
+  }
+  .attendance-table td {
+    padding: 5px 4px; border-bottom: 1px solid #21262d;
+  }
+  .attendance-table tr.success td { }
+  .attendance-table tr.spoof td { background: rgba(248,113,113,0.05); }
+  .attendance-table .badge {
+    display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem;
+  }
+  .badge-ok { background: rgba(63,185,80,0.2); color: #3fb950; }
+  .badge-fail { background: rgba(248,113,113,0.2); color: #f87171; }
+  .badge-face { background: rgba(88,166,255,0.2); color: #58a6ff; }
+  .badge-qr { background: rgba(188,140,255,0.2); color: #bc8cff; }
+  .badge-both { background: rgba(63,185,80,0.2); color: #3fb950; }
+
+  .model-compare { display: flex; gap: 8px; margin: 8px 0; }
+  .model-bar {
+    flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px; text-align: center;
+  }
+  .model-bar .name { font-size: 0.65rem; color: #8b949e; }
+  .model-bar .acc { font-size: 1.1rem; font-weight: 700; }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>Face-Check Simulator</h1>
+    <span class="sub">Face + QR Attendance — DeepFace Demo</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Auth Config -->
+  <div class="panel" id="controls-panel">
+    <h2>Auth Config</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">Room</label>
+    <select class="ctrl-select" id="sel-room">
+      <option value="CS101">CS101 — คอมพิวเตอร์เบื้องต้น</option>
+      <option value="CS201">CS201 — โครงสร้างข้อมูล</option>
+      <option value="CS301">CS301 — ปัญญาประดิษฐ์</option>
+    </select>
+
+    <label class="ctrl">Detection Model</label>
+    <select class="ctrl-select" id="sel-model">
+      <option value="facenet">FaceNet (128-d)</option>
+      <option value="vggface">VGG-Face (2048-d)</option>
+    </select>
+
+    <label class="ctrl">Liveness Threshold <span class="val" id="v-liveness">80%</span></label>
+    <input type="range" id="r-liveness" min="50" max="99" step="1" value="80">
+
+    <label class="ctrl">Check-in Interval <span class="val" id="v-interval">3.0s</span></label>
+    <input type="range" id="r-interval" min="1" max="8" step="0.5" value="3">
+
+    <h3>Mode</h3>
+    <div class="preset-grid" id="mode-grid">
+      <button class="preset-btn active" data-mode="normal">Normal<br><small>Standard check-in</small></button>
+      <button class="preset-btn danger" data-mode="spoof">Photo Spoof<br><small>Anti-spoofing test</small></button>
+      <button class="preset-btn" data-mode="lowlight">Low Light<br><small>Poor conditions</small></button>
+      <button class="preset-btn" data-mode="multi">Multiple Faces<br><small>Crowd detection</small></button>
+    </div>
+
+    <h3>Confidence Meter</h3>
+    <div class="conf-meter">
+      <div class="fill" id="conf-fill" style="width: 0%"></div>
+      <div class="label" id="conf-label">0%</div>
+    </div>
+
+    <button class="start-btn off" id="btn-start" onclick="toggleRun()">Start Check-in</button>
+  </div>
+
+  <!-- CENTER: Visualization -->
+  <div class="panel">
+    <h2>Camera View — DeepFace Detection</h2>
+    <div class="viz-wrap"><div id="viz-container"></div></div>
+
+    <div class="result-box" id="result-box">
+      <div class="result-icon" id="result-icon">&#128247;</div>
+      <div class="result-text" id="result-text">Waiting for face...</div>
+    </div>
+
+    <h3>Attendance Log</h3>
+    <div style="max-height: 220px; overflow-y: auto;">
+      <table class="attendance-table">
+        <thead>
+          <tr><th>Time</th><th>Name</th><th>Method</th><th>Status</th><th>Conf</th></tr>
+        </thead>
+        <tbody id="att-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RIGHT: Stats -->
+  <div class="panel">
+    <h2>Attendance Stats</h2>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-total">0</div><div class="lbl">Total Check-ins</div></div>
+      <div class="stat-card green"><div class="num" id="s-success">0</div><div class="lbl">Successful</div></div>
+      <div class="stat-card red"><div class="num" id="s-spoof">0</div><div class="lbl">Spoof Blocked</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-fail">0</div><div class="lbl">Failed</div></div>
+      <div class="stat-card purple"><div class="num" id="s-conf">0%</div><div class="lbl">Avg Confidence</div></div>
+      <div class="stat-card green"><div class="num" id="s-rate">0%</div><div class="lbl">Success Rate</div></div>
+    </div>
+
+    <h3>Model Comparison</h3>
+    <div class="model-compare">
+      <div class="model-bar">
+        <div class="name">FaceNet</div>
+        <div class="acc" id="m-facenet" style="color:#58a6ff">0%</div>
+      </div>
+      <div class="model-bar">
+        <div class="name">VGG-Face</div>
+        <div class="acc" id="m-vggface" style="color:#bc8cff">0%</div>
+      </div>
+    </div>
+
+    <h3>Security Log</h3>
+    <div style="font-size:0.7rem; color:#8b949e; margin-bottom:8px;">
+      <div style="margin:2px 0;">&#9679; Multi-factor: QR + Face = <span style="color:#3fb950">high security</span></div>
+      <div style="margin:2px 0;">&#9679; Liveness detection → <span style="color:#f87171">anti-spoofing</span></div>
+      <div style="margin:2px 0;">&#9679; Photo attack → <span style="color:#f87171">rejected</span></div>
+    </div>
+
+    <h3>Event Feed</h3>
+    <div style="max-height:200px; overflow-y:auto;" id="event-feed" class="feed"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const MAX_FEED = 30;
+
+// ===== STUDENT DATABASE =====
+const STUDENTS = [
+  { id: '65001', name: 'นายสมชาย ใจดี', nick: 'ชาย' },
+  { id: '65002', name: 'นางสาวสมหญิง รักเรียน', nick: 'หญิง' },
+  { id: '65003', name: 'นายวิชัย เก่งมาก', nick: 'ชัย' },
+  { id: '65004', name: 'นางสาวพิมพ์ใจ สวยงาม', nick: 'พิมพ์' },
+  { id: '65005', name: 'นายธนกร รุ่งเรือง', nick: 'กร' },
+  { id: '65006', name: 'นางสาวนภา ท้องฟ้า', nick: 'นภา' },
+  { id: '65007', name: 'นายอภิสิทธิ์ มานะ', nick: 'สิทธิ์' },
+  { id: '65008', name: 'นางสาวปรียา น่ารัก', nick: 'ปรียา' },
+  { id: '65009', name: 'นายกิตติ ขยัน', nick: 'กิตติ' },
+  { id: '65010', name: 'นางสาวจิราภา ฉลาด', nick: 'จิรา' },
+];
+
+// ===== STATE =====
+let mqttClient = null;
+let running = false;
+let checkTimer = null;
+let mode = 'normal';
+let stats = { total: 0, success: 0, spoof: 0, fail: 0, confSum: 0 };
+let modelStats = { facenet: { total: 0, confSum: 0 }, vggface: { total: 0, confSum: 0 } };
+let checkedIn = new Set();
+let currentPhase = 'idle'; // idle, detecting, landmarks, confidence, qr, result
+let phaseStart = 0;
+let currentStudent = null;
+let currentConf = 0;
+let isSpoof = false;
+let isLowLight = false;
+let faceCount = 1;
+let resultStatus = ''; // success, spoof, fail
+
+// ===== SLIDER BINDINGS =====
+const sliders = [
+  ['r-liveness', 'v-liveness', v => v + '%', 0],
+  ['r-interval', 'v-interval', v => v + 's', 1],
+];
+for (const [rid, vid, fmt, dec] of sliders) {
+  const r = document.getElementById(rid);
+  const v = document.getElementById(vid);
+  r.addEventListener('input', () => { v.textContent = fmt(parseFloat(r.value).toFixed(dec)); });
+}
+
+// ===== MODE BUTTONS =====
+document.getElementById('mode-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.preset-btn');
+  if (!btn) return;
+  document.querySelectorAll('#mode-grid .preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  mode = btn.dataset.mode;
+});
+
+// ===== CHECK-IN LOGIC =====
+function startCheckIn() {
+  // Pick a student
+  const available = STUDENTS.filter(s => !checkedIn.has(s.id));
+  if (available.length === 0) {
+    checkedIn.clear(); // Reset for demo loop
+  }
+  const pool = available.length > 0 ? available : STUDENTS;
+  currentStudent = pool[Math.floor(Math.random() * pool.length)];
+
+  const model = document.getElementById('sel-model').value;
+  const livenessThresh = parseInt(document.getElementById('r-liveness').value);
+
+  isSpoof = mode === 'spoof' && Math.random() < 0.6;
+  isLowLight = mode === 'lowlight';
+  faceCount = mode === 'multi' ? Math.floor(Math.random() * 3) + 2 : 1;
+
+  // Determine confidence
+  if (isSpoof) {
+    currentConf = 30 + Math.random() * 40; // Low confidence for spoofs
+  } else if (isLowLight) {
+    currentConf = 55 + Math.random() * 35;
+  } else if (faceCount > 1) {
+    currentConf = 60 + Math.random() * 30;
+  } else {
+    currentConf = livenessThresh + Math.random() * (100 - livenessThresh);
+  }
+  currentConf = Math.min(99.5, currentConf);
+
+  // Start detection phases
+  currentPhase = 'detecting';
+  phaseStart = Date.now();
+}
+
+function processResult() {
+  const model = document.getElementById('sel-model').value;
+  const livenessThresh = parseInt(document.getElementById('r-liveness').value);
+  const room = document.getElementById('sel-room').value;
+
+  stats.total++;
+  let status, method, statusClass;
+
+  if (isSpoof) {
+    status = 'REJECTED';
+    method = 'Spoof';
+    statusClass = 'spoof';
+    stats.spoof++;
+    resultStatus = 'spoof';
+  } else if (currentConf < livenessThresh) {
+    status = 'FAILED';
+    method = faceCount > 1 ? 'Multi' : 'Face';
+    statusClass = 'fail';
+    stats.fail++;
+    resultStatus = 'fail';
+  } else {
+    status = 'OK';
+    method = Math.random() < 0.6 ? 'Both' : (Math.random() < 0.5 ? 'Face' : 'QR');
+    statusClass = 'success';
+    stats.success++;
+    stats.confSum += currentConf;
+    checkedIn.add(currentStudent.id);
+    resultStatus = 'success';
+  }
+
+  // Model stats
+  modelStats[model].total++;
+  if (statusClass === 'success') {
+    modelStats[model].confSum += currentConf;
+  }
+
+  // Update result box
+  const rBox = document.getElementById('result-box');
+  const rIcon = document.getElementById('result-icon');
+  const rText = document.getElementById('result-text');
+  rBox.className = 'result-box ' + (statusClass === 'success' ? 'success' : 'fail');
+
+  if (isSpoof) {
+    rIcon.innerHTML = '&#10007;';
+    rText.textContent = 'ตรวจพบรูปถ่าย — ปฏิเสธ';
+  } else if (statusClass === 'fail') {
+    rIcon.innerHTML = '&#10007;';
+    rText.textContent = isLowLight ? 'แสงไม่เพียงพอ — กรุณาลองใหม่ค่ะ' : 'ไม่สามารถยืนยันตัวตนได้ค่ะ';
+  } else {
+    rIcon.innerHTML = '&#10003;';
+    rText.textContent = 'เช็คชื่อสำเร็จ — ' + currentStudent.nick + ' (' + currentStudent.id + ')';
+  }
+
+  // Attendance table
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+  const tbody = document.getElementById('att-body');
+  const tr = document.createElement('tr');
+  tr.className = statusClass;
+  const methodBadge = method === 'Both' ? 'badge-both' : method === 'QR' ? 'badge-qr' : 'badge-face';
+  const statusBadge = statusClass === 'success' ? 'badge-ok' : 'badge-fail';
+  tr.innerHTML = '<td>' + timeStr + '</td>'
+    + '<td>' + currentStudent.nick + '</td>'
+    + '<td><span class="badge ' + methodBadge + '">' + method + '</span></td>'
+    + '<td><span class="badge ' + statusBadge + '">' + status + '</span></td>'
+    + '<td>' + currentConf.toFixed(1) + '%</td>';
+  if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild);
+  else tbody.appendChild(tr);
+  while (tbody.children.length > 20) tbody.lastChild.remove();
+
+  // Event feed
+  const feed = document.getElementById('event-feed');
+  const entry = document.createElement('div');
+  entry.className = 'feed-entry';
+  entry.style.borderLeft = '3px solid ' + (statusClass === 'success' ? '#3fb950' : '#f87171');
+  entry.innerHTML = '<span style="color:#484f58;font-size:0.65rem">' + timeStr + '</span> '
+    + '<span style="color:' + (statusClass === 'success' ? '#3fb950' : '#f87171') + '">' + status + '</span> '
+    + '<span style="color:#8b949e">' + currentStudent.name + '</span> '
+    + '<span style="color:#58a6ff">' + currentConf.toFixed(1) + '%</span>';
+  feed.prepend(entry);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+
+  // MQTT
+  if (mqttClient?.connected) {
+    mqttClient.publish('attendance/' + room + '/checkin', JSON.stringify({
+      student_id: currentStudent.id,
+      student_name: currentStudent.name,
+      method: method.toLowerCase(),
+      confidence: +currentConf.toFixed(1),
+      liveness: !isSpoof,
+      status: status,
+      model: document.getElementById('sel-model').value,
+      room: room,
+      ts: Date.now()
+    }));
+  }
+
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = stats.total;
+  document.getElementById('s-success').textContent = stats.success;
+  document.getElementById('s-spoof').textContent = stats.spoof;
+  document.getElementById('s-fail').textContent = stats.fail;
+  const avgConf = stats.success > 0 ? (stats.confSum / stats.success).toFixed(1) : '0';
+  document.getElementById('s-conf').textContent = avgConf + '%';
+  const rate = stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(1) : '0';
+  document.getElementById('s-rate').textContent = rate + '%';
+
+  // Model comparison
+  for (const m of ['facenet', 'vggface']) {
+    const ms = modelStats[m];
+    const acc = ms.total > 0 ? (ms.confSum / ms.total).toFixed(1) : '0';
+    document.getElementById('m-' + m).textContent = acc + '%';
+  }
+}
+
+// ===== P5.JS FACE DETECTION VIZ =====
+const vizSketch = new p5(function(p) {
+  const W = 480, H = 420;
+  let scanLineY = 0;
+
+  p.setup = function() {
+    p.createCanvas(W, H);
+    p.textFont('sans-serif');
+    p.frameRate(30);
+  };
+
+  p.draw = function() {
+    p.background(13, 17, 23);
+    const t = p.millis() / 1000;
+    const elapsed = Date.now() - phaseStart;
+
+    // Camera frame
+    p.stroke(48, 54, 61);
+    p.strokeWeight(2);
+    p.noFill();
+    p.rect(10, 10, W - 20, H - 20, 4);
+
+    // Low-light overlay
+    if (isLowLight && currentPhase !== 'idle') {
+      p.noStroke();
+      p.fill(0, 0, 0, 120);
+      p.rect(10, 10, W - 20, H - 20);
+    }
+
+    // Camera labels
+    p.noStroke();
+    p.fill(88, 166, 255, 150);
+    p.textSize(9);
+    p.textAlign(p.RIGHT);
+    const modelName = document.getElementById('sel-model').value === 'facenet' ? 'FaceNet (128-d)' : 'VGG-Face (2048-d)';
+    p.text('DeepFace — ' + modelName, W - 20, 30);
+
+    if (running) {
+      p.fill(248, 113, 113, 180 + Math.sin(t * 3) * 75);
+      p.noStroke();
+      p.circle(35, 30, 8);
+      p.fill(248, 113, 113);
+      p.textSize(10);
+      p.textAlign(p.LEFT);
+      p.text('REC', 42, 34);
+    }
+
+    // Phase-based drawing
+    const centerX = W / 2;
+    const centerY = H / 2 - 10;
+    const faceW = 100;
+    const faceH = 130;
+
+    if (currentPhase === 'idle') {
+      // Draw target reticle
+      p.stroke(48, 54, 61, 150);
+      p.strokeWeight(1);
+      p.noFill();
+      p.ellipse(centerX, centerY, 180, 220);
+      p.line(centerX - 100, centerY, centerX + 100, centerY);
+      p.line(centerX, centerY - 120, centerX, centerY + 120);
+      p.noStroke();
+      p.fill(139, 148, 158, 100);
+      p.textSize(14);
+      p.textAlign(p.CENTER);
+      p.text('Position face here', centerX, centerY + 140);
+      return;
+    }
+
+    // Draw face(s)
+    const faces = faceCount > 1 ? faceCount : 1;
+    for (let fi = 0; fi < faces; fi++) {
+      const fx = faces === 1 ? centerX : centerX - 80 + fi * (160 / (faces - 1 || 1));
+      const fy = centerY + (fi % 2) * 15;
+      const sc = faces === 1 ? 1 : 0.7;
+
+      // Spoof: photo frame around face
+      if (isSpoof && fi === 0) {
+        p.stroke(248, 113, 113, 150 + Math.sin(t * 4) * 100);
+        p.strokeWeight(3);
+        p.noFill();
+        const frameW = faceW * sc + 50;
+        const frameH = faceH * sc + 60;
+        p.rect(fx - frameW / 2, fy - frameH / 2 - 10, frameW, frameH, 3);
+        // "PHOTO" label
+        p.noStroke();
+        p.fill(248, 113, 113, 200);
+        p.textSize(10);
+        p.textAlign(p.CENTER);
+        p.text('PHOTO DETECTED', fx, fy - faceH * sc / 2 - 25);
+      }
+
+      // Face oval
+      p.noStroke();
+      const skinAlpha = isLowLight ? 100 : 180;
+      p.fill(210, 180, 140, skinAlpha);
+      p.ellipse(fx, fy, faceW * sc, faceH * sc);
+
+      // Hair
+      p.fill(50, 40, 30, skinAlpha);
+      p.arc(fx, fy - 15 * sc, faceW * sc + 10, faceH * sc - 10, p.PI, p.TWO_PI);
+
+      // Eyes
+      const eyeY = fy - 15 * sc;
+      const eyeSpread = 18 * sc;
+      p.fill(255, 255, 255, skinAlpha);
+      p.ellipse(fx - eyeSpread, eyeY, 16 * sc, 10 * sc);
+      p.ellipse(fx + eyeSpread, eyeY, 16 * sc, 10 * sc);
+      p.fill(50, 30, 10, skinAlpha);
+      p.ellipse(fx - eyeSpread, eyeY, 8 * sc, 8 * sc);
+      p.ellipse(fx + eyeSpread, eyeY, 8 * sc, 8 * sc);
+
+      // Nose
+      p.fill(190, 160, 120, skinAlpha * 0.6);
+      p.triangle(fx - 5 * sc, fy + 5 * sc, fx + 5 * sc, fy + 5 * sc, fx, fy - 5 * sc);
+
+      // Mouth
+      p.fill(200, 100, 100, skinAlpha);
+      p.ellipse(fx, fy + 25 * sc, 20 * sc, 8 * sc);
+
+      // Landmark dots (appear in landmarks phase)
+      if (currentPhase === 'landmarks' || currentPhase === 'confidence' || currentPhase === 'qr' || currentPhase === 'result') {
+        const landmarkAlpha = Math.min(255, elapsed < 500 ? elapsed / 500 * 255 : 255);
+        p.fill(63, 185, 80, landmarkAlpha);
+        p.noStroke();
+        // Eyes
+        p.circle(fx - eyeSpread, eyeY, 5);
+        p.circle(fx + eyeSpread, eyeY, 5);
+        // Nose tip
+        p.circle(fx, fy + 5 * sc, 5);
+        // Mouth corners
+        p.circle(fx - 10 * sc, fy + 25 * sc, 4);
+        p.circle(fx + 10 * sc, fy + 25 * sc, 4);
+        // Chin
+        p.circle(fx, fy + faceH * sc / 2 - 5, 4);
+        // Eyebrow ends
+        p.circle(fx - eyeSpread - 8 * sc, eyeY - 8 * sc, 3);
+        p.circle(fx + eyeSpread + 8 * sc, eyeY - 8 * sc, 3);
+
+        // Connect landmarks with lines
+        p.stroke(63, 185, 80, landmarkAlpha * 0.3);
+        p.strokeWeight(1);
+        p.line(fx - eyeSpread, eyeY, fx + eyeSpread, eyeY);
+        p.line(fx, fy + 5 * sc, fx - 10 * sc, fy + 25 * sc);
+        p.line(fx, fy + 5 * sc, fx + 10 * sc, fy + 25 * sc);
+        p.noStroke();
+      }
+
+      // Detection bounding box
+      if (currentPhase !== 'idle') {
+        const boxAlpha = Math.min(220, elapsed / 200 * 220);
+        const boxColor = isSpoof ? [248, 113, 113] : [88, 166, 255];
+        p.stroke(boxColor[0], boxColor[1], boxColor[2], boxAlpha);
+        p.strokeWeight(2);
+        p.noFill();
+        const bw = faceW * sc + 30;
+        const bh = faceH * sc + 30;
+        p.rect(fx - bw / 2, fy - bh / 2, bw, bh, 3);
+
+        // Corner brackets
+        const cl = 10;
+        p.strokeWeight(3);
+        p.line(fx - bw / 2, fy - bh / 2, fx - bw / 2 + cl, fy - bh / 2);
+        p.line(fx - bw / 2, fy - bh / 2, fx - bw / 2, fy - bh / 2 + cl);
+        p.line(fx + bw / 2, fy - bh / 2, fx + bw / 2 - cl, fy - bh / 2);
+        p.line(fx + bw / 2, fy - bh / 2, fx + bw / 2, fy - bh / 2 + cl);
+        p.line(fx - bw / 2, fy + bh / 2, fx - bw / 2 + cl, fy + bh / 2);
+        p.line(fx - bw / 2, fy + bh / 2, fx - bw / 2, fy + bh / 2 - cl);
+        p.line(fx + bw / 2, fy + bh / 2, fx + bw / 2 - cl, fy + bh / 2);
+        p.line(fx + bw / 2, fy + bh / 2, fx + bw / 2, fy + bh / 2 - cl);
+
+        // Label
+        p.noStroke();
+        p.fill(boxColor[0], boxColor[1], boxColor[2], boxAlpha);
+        p.rect(fx - bw / 2, fy - bh / 2 - 18, 80, 16, 2);
+        p.fill(0, 0, 0, boxAlpha);
+        p.textSize(9);
+        p.textAlign(p.LEFT);
+        if (fi === 0 && currentStudent) {
+          p.text(currentStudent.nick + ' ' + currentConf.toFixed(0) + '%', fx - bw / 2 + 4, fy - bh / 2 - 6);
+        } else {
+          p.text('face_' + fi + ' ' + (50 + Math.random() * 40).toFixed(0) + '%', fx - bw / 2 + 4, fy - bh / 2 - 6);
+        }
+      }
+    }
+
+    // QR Code animation (during qr phase)
+    if (currentPhase === 'qr' || currentPhase === 'result') {
+      const qrX = W - 90;
+      const qrY = H - 120;
+      const qrSize = 60;
+
+      // QR code outline
+      p.stroke(188, 140, 255);
+      p.strokeWeight(2);
+      p.noFill();
+      p.rect(qrX, qrY, qrSize, qrSize, 2);
+
+      // QR pattern (simple grid)
+      p.noStroke();
+      p.fill(188, 140, 255, 180);
+      const cellSize = qrSize / 7;
+      const qrPattern = [
+        [1,1,1,0,1,1,1],
+        [1,0,1,0,1,0,1],
+        [1,1,1,0,1,1,1],
+        [0,0,0,1,0,0,0],
+        [1,1,1,0,1,0,1],
+        [1,0,0,1,0,1,0],
+        [1,1,1,0,1,1,1],
+      ];
+      for (let r = 0; r < 7; r++) {
+        for (let c = 0; c < 7; c++) {
+          if (qrPattern[r][c]) {
+            p.rect(qrX + c * cellSize + 1, qrY + r * cellSize + 1, cellSize - 1, cellSize - 1);
+          }
+        }
+      }
+
+      // Scan line
+      if (currentPhase === 'qr') {
+        const scanProg = (elapsed % 1500) / 1500;
+        const sly = qrY + scanProg * qrSize;
+        p.stroke(188, 140, 255, 200);
+        p.strokeWeight(2);
+        p.line(qrX, sly, qrX + qrSize, sly);
+
+        // Scan glow
+        p.noStroke();
+        p.fill(188, 140, 255, 30);
+        p.rect(qrX, qrY, qrSize, scanProg * qrSize);
+      }
+
+      p.noStroke();
+      p.fill(188, 140, 255);
+      p.textSize(8);
+      p.textAlign(p.CENTER);
+      p.text('QR Scan', qrX + qrSize / 2, qrY + qrSize + 12);
+    }
+
+    // Result overlay
+    if (currentPhase === 'result') {
+      p.textAlign(p.CENTER);
+      if (resultStatus === 'success') {
+        p.fill(63, 185, 80, 50);
+        p.noStroke();
+        p.rect(10, H - 55, W - 20, 40, 4);
+        p.fill(63, 185, 80);
+        p.textSize(16);
+        p.text('เช็คชื่อสำเร็จ', centerX, H - 30);
+      } else if (resultStatus === 'spoof') {
+        p.fill(248, 113, 113, 50);
+        p.noStroke();
+        p.rect(10, H - 55, W - 20, 40, 4);
+        p.fill(248, 113, 113);
+        p.textSize(16);
+        p.text('ตรวจพบรูปถ่าย — ปฏิเสธ', centerX, H - 30);
+      } else {
+        p.fill(251, 191, 36, 50);
+        p.noStroke();
+        p.rect(10, H - 55, W - 20, 40, 4);
+        p.fill(251, 191, 36);
+        p.textSize(16);
+        p.text('การยืนยันล้มเหลว', centerX, H - 30);
+      }
+    }
+
+    // Phase transitions
+    if (currentPhase === 'detecting' && elapsed > 800) {
+      currentPhase = 'landmarks';
+      phaseStart = Date.now();
+    } else if (currentPhase === 'landmarks' && elapsed > 700) {
+      currentPhase = 'confidence';
+      phaseStart = Date.now();
+    } else if (currentPhase === 'confidence' && elapsed > 800) {
+      currentPhase = 'qr';
+      phaseStart = Date.now();
+    } else if (currentPhase === 'qr' && elapsed > 1200) {
+      currentPhase = 'result';
+      phaseStart = Date.now();
+      processResult();
+    } else if (currentPhase === 'result' && elapsed > 1500) {
+      currentPhase = 'idle';
+    }
+
+    // Update confidence meter during confidence phase
+    if (currentPhase === 'confidence' || currentPhase === 'qr' || currentPhase === 'result') {
+      const prog = currentPhase === 'confidence' ? Math.min(1, elapsed / 800) : 1;
+      const confVal = currentConf * prog;
+      document.getElementById('conf-fill').style.width = confVal + '%';
+      document.getElementById('conf-label').textContent = confVal.toFixed(1) + '%';
+    } else if (currentPhase === 'idle') {
+      document.getElementById('conf-fill').style.width = '0%';
+      document.getElementById('conf-label').textContent = '0%';
+    }
+
+    // FPS
+    p.noStroke();
+    p.fill(139, 148, 158, 150);
+    p.textSize(9);
+    p.textAlign(p.LEFT);
+    p.text('FPS: ' + Math.round(p.frameRate()), 20, H - 15);
+  };
+}, document.getElementById('viz-container'));
+
+// ===== START / STOP =====
+window.toggleRun = function() {
+  const btn = document.getElementById('btn-start');
+  if (running) {
+    running = false;
+    clearInterval(checkTimer);
+    currentPhase = 'idle';
+    btn.textContent = 'Start Check-in';
+    btn.className = 'start-btn off';
+  } else {
+    running = true;
+    stats = { total: 0, success: 0, spoof: 0, fail: 0, confSum: 0 };
+    modelStats = { facenet: { total: 0, confSum: 0 }, vggface: { total: 0, confSum: 0 } };
+    checkedIn.clear();
+    updateStats();
+
+    const interval = parseFloat(document.getElementById('r-interval').value) * 1000;
+    startCheckIn();
+    checkTimer = setInterval(() => {
+      if (currentPhase === 'idle') startCheckIn();
+    }, interval);
+
+    btn.textContent = 'Stop Check-in';
+    btn.className = 'start-btn on';
+  }
+};
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== INIT =====
+initMQTT();
+</script>
+</body>
+</html>

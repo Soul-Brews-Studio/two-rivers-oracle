@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartBin CV Simulator — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  input[type="range"] { width: 100%; accent-color: #58a6ff; }
+  .val { float: right; color: #58a6ff; font-weight: 600; font-size: 0.75rem; }
+
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .preset-btn {
+    padding: 8px 4px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: #58a6ff; }
+  .preset-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .viz-wrap {
+    display: flex; justify-content: center;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 0; margin-bottom: 12px;
+  }
+  .viz-wrap canvas { display: block; }
+
+  .tts-box {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px; margin: 8px 0; font-size: 0.85rem; min-height: 50px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tts-box .speaker { font-size: 1.4rem; }
+  .tts-box .msg { color: #e6edf3; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+  .stat-card.purple .num { color: #bc8cff; }
+
+  .feed { max-height: 200px; overflow-y: auto; font-size: 0.7rem; font-family: monospace; }
+  .feed-entry { padding: 4px 8px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; align-items: center; }
+  .feed-entry .ts { color: #484f58; flex-shrink: 0; }
+  .feed-entry .item { color: #58a6ff; min-width: 80px; }
+  .feed-entry .conf { color: #3fb950; min-width: 40px; }
+  .feed-entry .inst { color: #f0883e; flex: 1; }
+
+  .bar-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.7rem; }
+  .bar-label { width: 70px; color: #8b949e; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 14px; background: #21262d; border-radius: 4px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .bar-count { width: 30px; color: #8b949e; font-size: 0.65rem; text-align: right; }
+
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>SmartBin CV Simulator</h1>
+    <span class="sub">AI Waste Classification — YOLOv8 Demo</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="floodboy.html">FloodBoy</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Controls -->
+  <div class="panel" id="controls-panel">
+    <h2>Camera Settings</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">Conveyor Speed <span class="val" id="v-speed">3</span></label>
+    <input type="range" id="r-speed" min="1" max="8" step="1" value="3">
+
+    <label class="ctrl">Detection Threshold <span class="val" id="v-thresh">75%</span></label>
+    <input type="range" id="r-thresh" min="50" max="99" step="1" value="75">
+
+    <label class="ctrl">Spawn Rate <span class="val" id="v-spawn">2.0s</span></label>
+    <input type="range" id="r-spawn" min="0.5" max="5" step="0.1" value="2">
+
+    <h3>Mode</h3>
+    <div class="preset-grid" id="mode-grid">
+      <button class="preset-btn active" data-mode="normal">Normal Sorting<br><small>Mixed items</small></button>
+      <button class="preset-btn" data-mode="mixed">Mixed Waste<br><small>Contaminated</small></button>
+      <button class="preset-btn" data-mode="recycle">All Recyclable<br><small>Clean stream</small></button>
+      <button class="preset-btn" data-mode="contaminated">Contaminated<br><small>Food residue</small></button>
+    </div>
+
+    <h3>Classification Breakdown</h3>
+    <div id="class-bars"></div>
+
+    <button class="start-btn off" id="btn-start" onclick="toggleRun()">Start Conveyor</button>
+  </div>
+
+  <!-- CENTER: Visualization -->
+  <div class="panel">
+    <h2>Camera View — YOLOv8 Detection</h2>
+    <div class="viz-wrap"><div id="viz-container"></div></div>
+
+    <h3>TTS Output</h3>
+    <div class="tts-box">
+      <span class="speaker">&#128266;</span>
+      <span class="msg" id="tts-msg">Waiting for detection...</span>
+    </div>
+
+    <h3>Detection Feed</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- RIGHT: Stats -->
+  <div class="panel">
+    <h2>Classification Results</h2>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-total">0</div><div class="lbl">Total Detected</div></div>
+      <div class="stat-card green"><div class="num" id="s-recycle">0</div><div class="lbl">Recyclable</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-organic">0</div><div class="lbl">Organic</div></div>
+      <div class="stat-card red"><div class="num" id="s-contam">0</div><div class="lbl">Contaminated</div></div>
+      <div class="stat-card purple"><div class="num" id="s-conf">0%</div><div class="lbl">Avg Confidence</div></div>
+      <div class="stat-card green"><div class="num" id="s-rpct">0%</div><div class="lbl">Recyclable %</div></div>
+    </div>
+
+    <h3>Processing Speed</h3>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-speed">0</div><div class="lbl">items/min</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-fps">30</div><div class="lbl">Camera FPS</div></div>
+    </div>
+
+    <h3>Instructions (Thai)</h3>
+    <div style="font-size:0.7rem; color:#8b949e; margin-bottom:8px;">
+      <div style="margin:4px 0;">&#9679; ขวดพลาสติก → <span style="color:#3fb950">"แยกฝาออก แยกฉลากออก แล้วทิ้งในถังรีไซเคิลค่ะ"</span></div>
+      <div style="margin:4px 0;">&#9679; ฝาขวด → <span style="color:#58a6ff">"ทิ้งในถังรีไซเคิลค่ะ"</span></div>
+      <div style="margin:4px 0;">&#9679; ฉลาก → <span style="color:#bc8cff">"ทิ้งในถังรีไซเคิลค่ะ"</span></div>
+      <div style="margin:4px 0;">&#9679; อาหาร → <span style="color:#fbbf24">"ทิ้งในถังขยะอินทรีย์ค่ะ"</span></div>
+      <div style="margin:4px 0;">&#9679; แก้ว → <span style="color:#f0883e">"ทิ้งในถังแก้วค่ะ ระวังมือด้วยนะคะ"</span></div>
+    </div>
+
+    <h3>Detection Log</h3>
+    <div class="feed" id="log-feed" style="max-height:200px;"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const MAX_FEED = 30;
+
+// ===== WASTE ITEM DEFINITIONS =====
+const WASTE_TYPES = {
+  bottle: {
+    label: 'ขวดพลาสติก', labelEn: 'Plastic Bottle', color: [63, 185, 80],
+    instruction: 'กรุณาแยกฝาออก แยกฉลากออก แล้วทิ้งในถังรีไซเคิลค่ะ',
+    category: 'recycle', brands: ['Est', 'Singha', 'Crystal', 'Minere']
+  },
+  cap: {
+    label: 'ฝาขวด', labelEn: 'Bottle Cap', color: [88, 166, 255],
+    instruction: 'ทิ้งฝาขวดในถังรีไซเคิลค่ะ',
+    category: 'recycle', brands: ['Singha', 'Est', 'Pepsi']
+  },
+  label: {
+    label: 'ฉลาก', labelEn: 'Label', color: [188, 140, 255],
+    instruction: 'ทิ้งฉลากในถังรีไซเคิลค่ะ',
+    category: 'recycle', brands: ['มาม่า', 'ไวไว', 'ยำยำ']
+  },
+  food: {
+    label: 'อาหาร', labelEn: 'Food Waste', color: [251, 191, 36],
+    instruction: 'ทิ้งในถังขยะอินทรีย์ค่ะ',
+    category: 'organic', brands: ['เศษอาหาร', 'เปลือกผลไม้', 'กล่องข้าว']
+  },
+  glass: {
+    label: 'แก้ว', labelEn: 'Glass', color: [240, 136, 62],
+    instruction: 'ทิ้งในถังแก้วค่ะ ระวังมือด้วยนะคะ',
+    category: 'recycle', brands: ['Leo', 'Chang', 'Spy']
+  }
+};
+
+const TYPE_KEYS = Object.keys(WASTE_TYPES);
+const CLASS_COLORS = {
+  bottle: '#3fb950', cap: '#58a6ff', label: '#bc8cff', food: '#fbbf24', glass: '#f0883e'
+};
+
+// ===== STATE =====
+let mqttClient = null;
+let running = false;
+let runTimer = null;
+let spawnTimer = null;
+let mode = 'normal';
+let items = [];
+let detections = [];
+let stats = { total: 0, recycle: 0, organic: 0, contaminated: 0, confSum: 0 };
+let classCounts = { bottle: 0, cap: 0, label: 0, food: 0, glass: 0 };
+let startTime = 0;
+let itemIdCounter = 0;
+
+// ===== SLIDER BINDINGS =====
+const sliders = [
+  ['r-speed', 'v-speed', v => v, 0],
+  ['r-thresh', 'v-thresh', v => v + '%', 0],
+  ['r-spawn', 'v-spawn', v => v + 's', 1],
+];
+for (const [rid, vid, fmt, dec] of sliders) {
+  const r = document.getElementById(rid);
+  const v = document.getElementById(vid);
+  r.addEventListener('input', () => { v.textContent = fmt(parseFloat(r.value).toFixed(dec)); });
+}
+
+// ===== MODE BUTTONS =====
+document.getElementById('mode-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.preset-btn');
+  if (!btn) return;
+  document.querySelectorAll('#mode-grid .preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  mode = btn.dataset.mode;
+});
+
+// ===== GENERATE ITEM =====
+function spawnItem() {
+  let typeKey;
+  switch (mode) {
+    case 'normal':
+      typeKey = TYPE_KEYS[Math.floor(Math.random() * TYPE_KEYS.length)];
+      break;
+    case 'mixed':
+      // More food/contaminated items
+      typeKey = Math.random() < 0.5 ? 'food' : TYPE_KEYS[Math.floor(Math.random() * TYPE_KEYS.length)];
+      break;
+    case 'recycle':
+      const recyclable = ['bottle', 'cap', 'label', 'glass'];
+      typeKey = recyclable[Math.floor(Math.random() * recyclable.length)];
+      break;
+    case 'contaminated':
+      typeKey = Math.random() < 0.4 ? 'food' : TYPE_KEYS[Math.floor(Math.random() * TYPE_KEYS.length)];
+      break;
+    default:
+      typeKey = TYPE_KEYS[Math.floor(Math.random() * TYPE_KEYS.length)];
+  }
+
+  const wt = WASTE_TYPES[typeKey];
+  const brand = wt.brands[Math.floor(Math.random() * wt.brands.length)];
+  const thresh = parseInt(document.getElementById('r-thresh').value);
+  let conf = thresh + Math.random() * (100 - thresh);
+  if (mode === 'contaminated' && Math.random() < 0.3) conf = 40 + Math.random() * 35;
+  conf = Math.min(99.9, conf);
+
+  const isContaminated = mode === 'contaminated' && Math.random() < 0.25;
+
+  items.push({
+    id: itemIdCounter++,
+    type: typeKey,
+    brand: brand,
+    x: -80,
+    y: 190 + (Math.random() - 0.5) * 30,
+    w: typeKey === 'bottle' ? 40 : typeKey === 'cap' ? 20 : typeKey === 'label' ? 50 : typeKey === 'glass' ? 35 : 45,
+    h: typeKey === 'bottle' ? 70 : typeKey === 'cap' ? 20 : typeKey === 'label' ? 30 : typeKey === 'glass' ? 55 : 40,
+    confidence: conf,
+    detected: false,
+    detectedAt: 0,
+    contaminated: isContaminated,
+    boxAlpha: 0,
+  });
+}
+
+function processDetection(item) {
+  const wt = WASTE_TYPES[item.type];
+  const thresh = parseInt(document.getElementById('r-thresh').value);
+  const passed = item.confidence >= thresh;
+
+  stats.total++;
+  if (item.contaminated) {
+    stats.contaminated++;
+  } else if (wt.category === 'recycle') {
+    stats.recycle++;
+  } else {
+    stats.organic++;
+  }
+  stats.confSum += item.confidence;
+  classCounts[item.type]++;
+
+  const instruction = item.contaminated
+    ? 'ตรวจพบสิ่งปนเปื้อน — กรุณาล้างก่อนทิ้งค่ะ'
+    : wt.instruction;
+
+  document.getElementById('tts-msg').textContent = instruction;
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+
+  // Feed entry
+  const feed = document.getElementById('feed');
+  const el = document.createElement('div');
+  el.className = 'feed-entry';
+  el.innerHTML = '<span class="ts">' + timeStr + '</span>'
+    + '<span class="item">' + wt.label + '</span>'
+    + '<span class="conf">' + item.confidence.toFixed(1) + '%</span>'
+    + '<span class="inst">' + (item.contaminated ? 'ปนเปื้อน' : (passed ? 'OK' : 'LOW')) + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+
+  // Log entry
+  const log = document.getElementById('log-feed');
+  const le = document.createElement('div');
+  le.className = 'feed-entry';
+  le.style.borderLeft = '3px solid ' + (item.contaminated ? '#f87171' : passed ? '#3fb950' : '#fbbf24');
+  le.innerHTML = '<span class="ts">' + timeStr + '</span>'
+    + '<span style="color:' + CLASS_COLORS[item.type] + '">' + item.brand + '</span> '
+    + '<span style="color:#8b949e">' + item.confidence.toFixed(1) + '%</span>';
+  log.prepend(le);
+  while (log.children.length > MAX_FEED) log.lastChild.remove();
+
+  // MQTT
+  if (mqttClient?.connected) {
+    mqttClient.publish('waste/' + item.id + '/detection', JSON.stringify({
+      item_type: item.type,
+      label: wt.label,
+      brand: item.brand,
+      confidence: +item.confidence.toFixed(1),
+      instruction: instruction,
+      contaminated: item.contaminated,
+      ts: Date.now()
+    }));
+  }
+
+  updateStats();
+  updateBars();
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = stats.total;
+  document.getElementById('s-recycle').textContent = stats.recycle;
+  document.getElementById('s-organic').textContent = stats.organic;
+  document.getElementById('s-contam').textContent = stats.contaminated;
+  const avgConf = stats.total > 0 ? (stats.confSum / stats.total).toFixed(1) : 0;
+  document.getElementById('s-conf').textContent = avgConf + '%';
+  const rpct = stats.total > 0 ? ((stats.recycle / stats.total) * 100).toFixed(1) : 0;
+  document.getElementById('s-rpct').textContent = rpct + '%';
+
+  const elapsed = (Date.now() - startTime) / 60000;
+  const ipm = elapsed > 0 ? (stats.total / elapsed).toFixed(1) : 0;
+  document.getElementById('s-speed').textContent = ipm;
+}
+
+function updateBars() {
+  const container = document.getElementById('class-bars');
+  const maxCount = Math.max(1, ...Object.values(classCounts));
+  let html = '';
+  for (const key of TYPE_KEYS) {
+    const wt = WASTE_TYPES[key];
+    const count = classCounts[key];
+    const pct = (count / maxCount) * 100;
+    html += '<div class="bar-row">'
+      + '<span class="bar-label">' + wt.label + '</span>'
+      + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + CLASS_COLORS[key] + '"></div></div>'
+      + '<span class="bar-count">' + count + '</span>'
+      + '</div>';
+  }
+  container.innerHTML = html;
+}
+
+// ===== P5.JS CONVEYOR VISUALIZATION =====
+const vizSketch = new p5(function(p) {
+  const W = 520, H = 400;
+  let beltOffset = 0;
+
+  p.setup = function() {
+    p.createCanvas(W, H);
+    p.textFont('sans-serif');
+    p.frameRate(30);
+  };
+
+  p.draw = function() {
+    p.background(13, 17, 23);
+    const speed = parseInt(document.getElementById('r-speed').value);
+
+    // Camera frame
+    p.stroke(48, 54, 61);
+    p.strokeWeight(2);
+    p.noFill();
+    p.rect(10, 10, W - 20, H - 20, 4);
+
+    // "REC" indicator
+    if (running) {
+      p.noStroke();
+      p.fill(248, 113, 113, 180 + Math.sin(p.millis() / 500) * 75);
+      p.circle(35, 30, 8);
+      p.fill(248, 113, 113);
+      p.textSize(10);
+      p.textAlign(p.LEFT);
+      p.text('REC', 42, 34);
+    }
+
+    // YOLOv8 model label
+    p.noStroke();
+    p.fill(88, 166, 255, 150);
+    p.textSize(9);
+    p.textAlign(p.RIGHT);
+    p.text('YOLOv8n — waste-thai-v3', W - 20, 30);
+    p.text('conf: ' + document.getElementById('r-thresh').value + '%', W - 20, 42);
+
+    // Conveyor belt
+    p.fill(55, 65, 81);
+    p.noStroke();
+    p.rect(0, 260, W, 60, 0);
+
+    // Belt texture
+    if (running) beltOffset = (beltOffset + speed * 0.8) % 40;
+    p.stroke(75, 85, 99);
+    p.strokeWeight(1);
+    for (let x = -40 + beltOffset; x < W + 40; x += 40) {
+      p.line(x, 265, x - 15, 315);
+    }
+
+    // Belt edges
+    p.noStroke();
+    p.fill(75, 85, 99);
+    p.rect(0, 255, W, 8);
+    p.rect(0, 317, W, 8);
+
+    // Rollers
+    p.fill(107, 114, 128);
+    p.ellipse(30, 290, 40, 50);
+    p.ellipse(W - 30, 290, 40, 50);
+    p.fill(55, 65, 81);
+    p.ellipse(30, 290, 20, 25);
+    p.ellipse(W - 30, 290, 20, 25);
+
+    // Overhead sensor bar
+    p.fill(48, 54, 61);
+    p.rect(W / 2 - 60, 100, 120, 20, 4);
+    p.fill(88, 166, 255, 100);
+    p.rect(W / 2 - 50, 115, 100, 4, 2);
+
+    // Scan line
+    if (running) {
+      const scanX = W / 2 - 50 + ((p.millis() / 20 * speed) % 100);
+      p.stroke(88, 166, 255, 80);
+      p.strokeWeight(1);
+      p.line(scanX, 120, scanX, 255);
+    }
+
+    // Sorting bins at bottom
+    const binY = 340;
+    const binColors = [[63, 185, 80], [251, 191, 36], [240, 136, 62]];
+    const binLabels = ['Recycle', 'Organic', 'Glass'];
+    for (let i = 0; i < 3; i++) {
+      const bx = 80 + i * 170;
+      p.fill(binColors[i][0], binColors[i][1], binColors[i][2], 60);
+      p.stroke(binColors[i][0], binColors[i][1], binColors[i][2]);
+      p.strokeWeight(1);
+      p.rect(bx, binY, 80, 45, 4);
+      p.noStroke();
+      p.fill(binColors[i][0], binColors[i][1], binColors[i][2]);
+      p.textSize(9);
+      p.textAlign(p.CENTER);
+      p.text(binLabels[i], bx + 40, binY + 28);
+    }
+
+    // Move and draw items
+    const thresh = parseInt(document.getElementById('r-thresh').value);
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (running) it.x += speed * 1.2;
+
+      // Detection zone
+      if (!it.detected && it.x > W * 0.3 && it.x < W * 0.7) {
+        it.detected = true;
+        it.detectedAt = p.millis();
+        processDetection(it);
+      }
+
+      // Draw item
+      const wt = WASTE_TYPES[it.type];
+      const c = wt.color;
+
+      p.push();
+      p.translate(it.x, it.y);
+
+      // Draw shapes by type
+      p.noStroke();
+      switch (it.type) {
+        case 'bottle':
+          p.fill(c[0], c[1], c[2], 180);
+          p.rect(-8, -30, 16, 50, 3);
+          p.rect(-4, -38, 8, 10, 2);
+          // Brand text on bottle
+          p.fill(255, 255, 255, 180);
+          p.textSize(7);
+          p.textAlign(p.CENTER);
+          p.text(it.brand, 0, -5);
+          break;
+        case 'cap':
+          p.fill(c[0], c[1], c[2], 200);
+          p.ellipse(0, 0, 18, 10);
+          p.fill(c[0], c[1], c[2], 140);
+          p.ellipse(0, -3, 18, 10);
+          break;
+        case 'label':
+          p.fill(c[0], c[1], c[2], 150);
+          p.rect(-22, -12, 44, 24, 2);
+          p.fill(255, 255, 255, 180);
+          p.textSize(8);
+          p.textAlign(p.CENTER);
+          p.text(it.brand, 0, 3);
+          break;
+        case 'food':
+          p.fill(c[0], c[1], c[2], 150);
+          p.beginShape();
+          for (let a = 0; a < p.TWO_PI; a += 0.5) {
+            const r = 15 + Math.sin(a * 3) * 5;
+            p.vertex(Math.cos(a) * r, Math.sin(a) * r);
+          }
+          p.endShape(p.CLOSE);
+          p.fill(255, 255, 255, 120);
+          p.textSize(6);
+          p.textAlign(p.CENTER);
+          p.text(it.brand, 0, 3);
+          break;
+        case 'glass':
+          p.fill(c[0], c[1], c[2], 120);
+          p.rect(-8, -25, 16, 45, 2);
+          p.rect(-10, -28, 20, 8, 2);
+          p.fill(255, 255, 255, 100);
+          p.textSize(6);
+          p.textAlign(p.CENTER);
+          p.text(it.brand, 0, -5);
+          break;
+      }
+
+      // Contamination overlay
+      if (it.contaminated) {
+        p.fill(248, 113, 113, 60);
+        p.rect(-it.w / 2 - 5, -it.h / 2 - 5, it.w + 10, it.h + 10, 3);
+      }
+
+      // YOLO bounding box
+      if (it.detected) {
+        const fadeIn = Math.min(1, (p.millis() - it.detectedAt) / 300);
+        it.boxAlpha = fadeIn;
+
+        const bxW = it.w + 14;
+        const bxH = it.h + 14;
+        p.stroke(c[0], c[1], c[2], 220 * fadeIn);
+        p.strokeWeight(2);
+        p.noFill();
+        p.rect(-bxW / 2, -bxH / 2, bxW, bxH, 2);
+
+        // Corner brackets
+        const cornerLen = 8;
+        p.strokeWeight(3);
+        // Top-left
+        p.line(-bxW / 2, -bxH / 2, -bxW / 2 + cornerLen, -bxH / 2);
+        p.line(-bxW / 2, -bxH / 2, -bxW / 2, -bxH / 2 + cornerLen);
+        // Top-right
+        p.line(bxW / 2, -bxH / 2, bxW / 2 - cornerLen, -bxH / 2);
+        p.line(bxW / 2, -bxH / 2, bxW / 2, -bxH / 2 + cornerLen);
+        // Bottom-left
+        p.line(-bxW / 2, bxH / 2, -bxW / 2 + cornerLen, bxH / 2);
+        p.line(-bxW / 2, bxH / 2, -bxW / 2, bxH / 2 - cornerLen);
+        // Bottom-right
+        p.line(bxW / 2, bxH / 2, bxW / 2 - cornerLen, bxH / 2);
+        p.line(bxW / 2, bxH / 2, bxW / 2, bxH / 2 - cornerLen);
+
+        // Label box
+        p.noStroke();
+        p.fill(c[0], c[1], c[2], 200 * fadeIn);
+        const labelW = 90;
+        p.rect(-bxW / 2, -bxH / 2 - 18, labelW, 16, 2);
+        p.fill(0, 0, 0, 220 * fadeIn);
+        p.textSize(9);
+        p.textAlign(p.LEFT);
+        p.text(wt.label + ' ' + it.confidence.toFixed(0) + '%', -bxW / 2 + 3, -bxH / 2 - 6);
+      }
+
+      p.pop();
+
+      // Remove off-screen
+      if (it.x > W + 100) items.splice(i, 1);
+    }
+
+    // FPS counter
+    p.noStroke();
+    p.fill(139, 148, 158, 150);
+    p.textSize(9);
+    p.textAlign(p.LEFT);
+    p.text('FPS: ' + Math.round(p.frameRate()), 20, H - 15);
+
+    document.getElementById('s-fps').textContent = Math.round(p.frameRate());
+  };
+}, document.getElementById('viz-container'));
+
+// ===== START / STOP =====
+window.toggleRun = function() {
+  const btn = document.getElementById('btn-start');
+  if (running) {
+    running = false;
+    clearInterval(spawnTimer);
+    btn.textContent = 'Start Conveyor';
+    btn.className = 'start-btn off';
+  } else {
+    running = true;
+    startTime = Date.now();
+    stats = { total: 0, recycle: 0, organic: 0, contaminated: 0, confSum: 0 };
+    classCounts = { bottle: 0, cap: 0, label: 0, food: 0, glass: 0 };
+    items = [];
+    updateStats();
+    updateBars();
+
+    const spawnRate = parseFloat(document.getElementById('r-spawn').value) * 1000;
+    spawnItem();
+    spawnTimer = setInterval(spawnItem, spawnRate);
+
+    btn.textContent = 'Stop Conveyor';
+    btn.className = 'start-btn on';
+  }
+};
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== INIT =====
+updateBars();
+initMQTT();
+</script>
+</body>
+</html>
