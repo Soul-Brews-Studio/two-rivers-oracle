@@ -672,17 +672,19 @@ function animate() {
   }
   document.getElementById('progressBar').style.width = (playT * 100) + '%';
 
-  // Follow camera — on top of the train, looking forward
+  // Follow camera — behind and above the train, cinematic chase view
   if (followCam && locomotive.visible) {
     controls.enabled = false;
     const lp = locomotive.position;
     const tan = curve.getTangentAt(Math.min(playT, 0.999)).normalize();
-    const lookAhead = lp.clone().add(tan.clone().multiplyScalar(8));
-    lookAhead.y = lp.y + 0.5;
+    const right = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0)).normalize();
+    const lookAhead = lp.clone().add(tan.clone().multiplyScalar(10));
+    lookAhead.y = lp.y + 0.8;
     const camPos = lp.clone()
-      .add(new THREE.Vector3(0, 2.2, 0))
-      .sub(tan.clone().multiplyScalar(0.5));
-    camera.position.lerp(camPos, 0.08);
+      .add(new THREE.Vector3(0, 4.5, 0))
+      .sub(tan.clone().multiplyScalar(6))
+      .add(right.clone().multiplyScalar(1.5));
+    camera.position.lerp(camPos, 0.04);
     camera.lookAt(lookAhead);
   } else {
     controls.enabled = true;
