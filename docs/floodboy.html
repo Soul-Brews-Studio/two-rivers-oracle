@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FloodBoy Simulator — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow-x: hidden; }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 16px; overflow-y: auto;
+  }
+  .panel h2 { color: #58a6ff; font-size: 1rem; margin-bottom: 8px; }
+  .panel h3 { color: #8b949e; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin: 12px 0 6px; }
+
+  /* Controls */
+  label.ctrl { display: block; font-size: 0.75rem; color: #8b949e; margin: 8px 0 2px; }
+  input[type="text"], input[type="range"] { width: 100%; }
+  input[type="text"] {
+    padding: 8px 10px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; color: #e6edf3; font-size: 0.85rem;
+  }
+  input[type="range"] { accent-color: #58a6ff; }
+  .val { float: right; color: #58a6ff; font-weight: 600; font-size: 0.75rem; }
+
+  /* Preset buttons */
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .preset-btn {
+    padding: 8px 4px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: #58a6ff; }
+  .preset-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+
+  /* Glitch buttons */
+  .glitch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .glitch-btn {
+    padding: 8px 6px; border: 1px solid #30363d; border-radius: 6px;
+    background: #21262d; color: #8b949e; font-size: 0.7rem; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .glitch-btn:hover { border-color: #58a6ff; }
+  .glitch-btn.active { background: #1f3a5f; border-color: #58a6ff; color: #58a6ff; }
+  .glitch-btn.active.danger { background: #3d1f1f; border-color: #f87171; color: #f87171; }
+
+  /* Start/Stop */
+  .start-btn {
+    width: 100%; padding: 10px; margin-top: 12px; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .start-btn.off { background: #3fb950; color: #0d1117; }
+  .start-btn.on { background: #f87171; color: #0d1117; }
+
+  /* Status */
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  /* Viz container */
+  .viz-wrap {
+    display: flex; justify-content: center; margin-bottom: 12px;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 0;
+  }
+  .viz-wrap canvas { display: block; }
+
+  /* Chart */
+  .chart-wrap { position: relative; height: 220px; margin-bottom: 12px; }
+
+  /* Feed */
+  .feed { max-height: 200px; overflow-y: auto; font-size: 0.7rem; font-family: monospace; }
+  .feed-entry { padding: 3px 6px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; }
+  .feed-entry .ts { color: #484f58; flex-shrink: 0; }
+  .feed-entry .depth { color: #58a6ff; min-width: 60px; }
+  .feed-entry .mode { color: #f0883e; }
+  .feed-entry.rejected { background: rgba(248,113,113,0.08); }
+  .feed-entry.rejected .depth { color: #f87171; }
+  .feed-entry.zero { background: rgba(251,191,36,0.08); }
+  .feed-entry.zero .depth { color: #fbbf24; }
+
+  /* Stats */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .stat-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+  .stat-card.green .num { color: #3fb950; }
+  .stat-card.red .num { color: #f87171; }
+  .stat-card.yellow .num { color: #fbbf24; }
+  .stat-card.blue .num { color: #58a6ff; }
+
+  /* Validation feed */
+  .val-entry { padding: 4px 8px; border-radius: 4px; margin: 3px 0; font-size: 0.7rem; font-family: monospace; }
+  .val-entry.clean { border-left: 3px solid #3fb950; }
+  .val-entry.zero_reading { border-left: 3px solid #fbbf24; }
+  .val-entry.rejected { border-left: 3px solid #f87171; background: rgba(248,113,113,0.05); }
+
+  /* Header bar */
+  .header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: #8b949e; font-size: 0.75rem; }
+  .header .links { margin-left: auto; font-size: 0.7rem; }
+  .header .links a { color: #58a6ff; text-decoration: none; margin-left: 12px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>FloodBoy Simulator</h1>
+    <span class="sub">Data Quality Validation — teaching tool</span>
+    <div class="links">
+      <a href="index.html">Workshop</a>
+      <a href="arena.html">Arena</a>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </div>
+  </div>
+
+  <!-- LEFT: Controls -->
+  <div class="panel" id="controls-panel">
+    <h2>Sensor Config</h2>
+    <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+
+    <label class="ctrl">Nickname</label>
+    <input type="text" id="nickname" value="SIM001" maxlength="20">
+
+    <label class="ctrl">Water Depth <span class="val" id="v-depth">1.200 m</span></label>
+    <input type="range" id="r-depth" min="0" max="5" step="0.01" value="1.2">
+
+    <label class="ctrl">Installation Height <span class="val" id="v-install">3.0 m</span></label>
+    <input type="range" id="r-install" min="0.5" max="10" step="0.1" value="3">
+
+    <label class="ctrl">Battery Voltage <span class="val" id="v-batt">12.6 V</span></label>
+    <input type="range" id="r-batt" min="0" max="15" step="0.1" value="12.6">
+
+    <label class="ctrl">Publish Interval <span class="val" id="v-interval">2000 ms</span></label>
+    <input type="range" id="r-interval" min="500" max="10000" step="100" value="2000">
+
+    <h3>Presets</h3>
+    <div class="preset-grid" id="preset-grid">
+      <button class="preset-btn" data-preset="normal">Normal<br><small>0.5m water</small></button>
+      <button class="preset-btn" data-preset="flooding">Flooding<br><small>80% height</small></button>
+      <button class="preset-btn" data-preset="dry">Dry<br><small>0m water</small></button>
+      <button class="preset-btn" data-preset="offline">Offline<br><small>0.3m water</small></button>
+      <button class="preset-btn" data-preset="dead">Dead<br><small>sensor dead</small></button>
+    </div>
+
+    <h3>Glitch Mode</h3>
+    <div class="glitch-grid" id="glitch-grid">
+      <button class="glitch-btn active" data-mode="normal">Normal<br><small>±10mm</small></button>
+      <button class="glitch-btn" data-mode="spike">Spike<br><small>15-20m jump</small></button>
+      <button class="glitch-btn" data-mode="negative">Negative<br><small>-1 to -4m</small></button>
+      <button class="glitch-btn" data-mode="zero">Zero Warp<br><small>drops to 0</small></button>
+      <button class="glitch-btn" data-mode="stuck">Stuck<br><small>locked value</small></button>
+      <button class="glitch-btn" data-mode="gradual">Gradual Rise<br><small>+15mm/read</small></button>
+      <button class="glitch-btn" data-mode="noisy">Noisy<br><small>±1m chaos</small></button>
+    </div>
+
+    <button class="start-btn off" id="btn-start" onclick="togglePublish()">Start Publishing</button>
+  </div>
+
+  <!-- CENTER: Visualization + Chart + Feed -->
+  <div class="panel">
+    <h2>Sensor Visualization</h2>
+    <div class="viz-wrap"><div id="viz-container"></div></div>
+
+    <h2>Live Data</h2>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <h3>Live Feed</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- RIGHT: Validation + Stats -->
+  <div class="panel">
+    <h2>Validation Results</h2>
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="num" id="s-total">0</div><div class="lbl">Total</div></div>
+      <div class="stat-card green"><div class="num" id="s-rate">0%</div><div class="lbl">Acceptance</div></div>
+      <div class="stat-card green"><div class="num" id="s-clean">0</div><div class="lbl">Clean</div></div>
+      <div class="stat-card red"><div class="num" id="s-rejected">0</div><div class="lbl">Rejected</div></div>
+      <div class="stat-card yellow"><div class="num" id="s-zero">0</div><div class="lbl">Zero Reading</div></div>
+      <div class="stat-card red"><div class="num" id="s-rateExc">0</div><div class="lbl">Rate Exceeded</div></div>
+    </div>
+
+    <h3>Validation Rules</h3>
+    <div style="font-size:0.7rem; color:#8b949e; margin-bottom:8px;">
+      <div>1. depth &lt; 0 → <span style="color:#f87171">rejected_negative</span></div>
+      <div>2. depth &gt; 20m → <span style="color:#f87171">rejected_range</span></div>
+      <div>3. depth = 0 → <span style="color:#fbbf24">zero_reading</span> (flagged)</div>
+      <div>4. rate &gt; 0.5 m/s → <span style="color:#f87171">rate_exceeded</span></div>
+      <div>5. else → <span style="color:#3fb950">clean</span></div>
+    </div>
+
+    <h3>Validation Stream</h3>
+    <div class="feed" id="val-feed" style="max-height:250px;"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const MAX_RATE = 0.5; // m/s
+const MAX_CHART_POINTS = 60;
+const MAX_FEED = 30;
+
+// ===== STATE =====
+let mqttClient = null;
+let publishing = false;
+let pubTimer = null;
+let glitchMode = 'normal';
+let gradualDepth = 0.5;
+let stuckValue = null;
+let lastClean = { depth: null, ts: null };
+let stats = { total: 0, clean: 0, rejected: 0, zero: 0, rateExc: 0 };
+
+// Visualization state
+let vizState = { isOnline: true, isDead: false };
+
+// ===== SLIDER BINDINGS =====
+const sliders = [
+  ['r-depth', 'v-depth', v => v + ' m', 3],
+  ['r-install', 'v-install', v => v + ' m', 1],
+  ['r-batt', 'v-batt', v => v + ' V', 1],
+  ['r-interval', 'v-interval', v => v + ' ms', 0],
+];
+for (const [rid, vid, fmt, dec] of sliders) {
+  const r = document.getElementById(rid);
+  const v = document.getElementById(vid);
+  r.addEventListener('input', () => { v.textContent = fmt(parseFloat(r.value).toFixed(dec)); });
+}
+
+// ===== PRESET BUTTONS =====
+document.getElementById('preset-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.preset-btn');
+  if (!btn) return;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const installH = parseFloat(document.getElementById('r-install').value);
+  const preset = btn.dataset.preset;
+  let depth, online = true, dead = false;
+
+  switch (preset) {
+    case 'normal':
+      depth = Math.min(0.5, installH);
+      break;
+    case 'flooding':
+      depth = installH * 0.8;
+      break;
+    case 'dry':
+      depth = 0;
+      break;
+    case 'offline':
+      depth = Math.min(0.3, installH);
+      online = false;
+      break;
+    case 'dead':
+      depth = installH * 0.6;
+      online = false;
+      dead = true;
+      break;
+    default:
+      depth = 1.2;
+  }
+
+  // Update depth slider
+  const rDepth = document.getElementById('r-depth');
+  rDepth.value = depth.toFixed(2);
+  document.getElementById('v-depth').textContent = depth.toFixed(3) + ' m';
+
+  // Update viz state
+  vizState.isOnline = online;
+  vizState.isDead = dead;
+});
+
+// ===== GLITCH BUTTONS =====
+document.getElementById('glitch-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.glitch-btn');
+  if (!btn) return;
+  document.querySelectorAll('.glitch-btn').forEach(b => b.classList.remove('active', 'danger'));
+  btn.classList.add('active');
+  const mode = btn.dataset.mode;
+  if (mode !== 'normal') btn.classList.add('danger');
+  glitchMode = mode;
+  gradualDepth = 0.5;
+  stuckValue = null;
+});
+
+// ===== CHART SETUP =====
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: 'Published (raw)',
+        data: [], borderColor: 'rgba(88,166,255,0.6)', backgroundColor: 'rgba(88,166,255,0.1)',
+        fill: true, pointRadius: 2, borderWidth: 1.5, tension: 0.2,
+      },
+      {
+        label: 'Accepted',
+        data: [], borderColor: '#3fb950', backgroundColor: 'transparent',
+        pointRadius: 0, borderWidth: 2, tension: 0.2,
+      },
+      {
+        label: 'Rejected',
+        data: [], borderColor: '#f87171', backgroundColor: '#f87171',
+        pointRadius: 5, pointStyle: 'crossRot', borderWidth: 0, showLine: false,
+      },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 200 },
+    scales: {
+      x: { display: false },
+      y: { grid: { color: '#21262d' }, ticks: { color: '#8b949e', font: { size: 10 } } },
+    },
+    plugins: {
+      legend: { labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 12 } },
+    },
+  },
+});
+
+// ===== P5.JS SENSOR VISUALIZATION =====
+const vizSketch = new p5(function(p) {
+  const W = 350, H = 400;
+
+  p.setup = function() {
+    p.createCanvas(W, H);
+    p.frameRate(30);
+  };
+
+  p.draw = function() {
+    p.clear();
+    p.background(13, 17, 23);
+
+    const waterLevel = parseFloat(document.getElementById('r-depth').value);
+    const installH = parseFloat(document.getElementById('r-install').value);
+    const isOnline = vizState.isOnline;
+    const isDead = vizState.isDead;
+
+    const centerX = 130;
+    const baseY = 370;
+    const yOff = -10;
+
+    // Sensor position
+    const armY = yOff + 136;
+    const armStartX = centerX + 5;
+    const armLength = 120;
+    const sensorX = armStartX + armLength + 10;
+    const sensorY = armY + 4;
+
+    // ── Base / Foundation ──
+    p.noStroke();
+    p.fill(75, 85, 99);
+    p.rect(centerX - 30, baseY - 20, 60, 20, 2);
+    p.fill(55, 65, 81);
+    p.rect(centerX - 40, baseY - 5, 80, 8);
+
+    // ── Vertical Pole ──
+    p.fill(107, 114, 128);
+    p.rect(centerX - 5, yOff + 70, 10, 30);
+    p.fill(156, 163, 175, 127);
+    p.rect(centerX - 3, yOff + 70, 6, 300);
+
+    // ── Solar Panel Support ──
+    p.fill(55, 65, 81);
+    p.rect(centerX - 10, yOff + 90, 20, 4);
+
+    // ── Solar Panel ──
+    p.push();
+    p.fill(31, 41, 55);
+    p.rect(centerX - 40, yOff + 50, 80, 40, 2);
+    // Cell grid
+    p.stroke(55, 65, 81);
+    p.strokeWeight(1);
+    for (let i = 1; i < 4; i++) {
+      p.line(centerX - 40 + i * 20, yOff + 50, centerX - 40 + i * 20, yOff + 90);
+    }
+    for (let i = 1; i < 3; i++) {
+      p.line(centerX - 40, yOff + 50 + i * 15, centerX + 40, yOff + 50 + i * 15);
+    }
+    p.noStroke();
+    // Shine effect
+    p.fill(59, 130, 246, 77);
+    p.rect(centerX - 40, yOff + 50, 80, 40, 2);
+    p.pop();
+
+    // ── Horizontal Arm (telescopic) ──
+    p.noStroke();
+    p.fill(107, 114, 128);
+    p.rect(armStartX, armY, armLength, 8);
+    p.fill(156, 163, 175, 127);
+    p.rect(armStartX, armY + 2, armLength, 4);
+    // Segments
+    p.fill(124, 124, 124);
+    p.rect(armStartX + 20, armY + 1, 100, 6);
+    p.fill(140, 140, 140);
+    p.rect(armStartX + 40, armY + 2, 80, 4);
+    // Joints
+    p.fill(90, 90, 90);
+    for (let i = 1; i <= 3; i++) {
+      p.rect(armStartX + i * 20, armY, 2, 8);
+    }
+
+    // ── Control Box ──
+    p.fill(31, 41, 55);
+    p.rect(centerX - 25, yOff + 110, 50, 60, 3);
+    p.fill(17, 24, 39);
+    p.rect(centerX - 20, yOff + 115, 40, 50, 2);
+    // FLOODBOY text
+    p.push();
+    p.fill(255, 255, 255, 200);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.textSize(9);
+    p.textStyle(p.BOLD);
+    p.text('FLOOD', centerX, yOff + 145);
+    p.text('BOY', centerX, yOff + 157);
+    p.textStyle(p.NORMAL);
+    p.pop();
+
+    // ── LED indicators ──
+    const time = p.millis() / 1000;
+    p.noStroke();
+    if (isDead) {
+      p.fill(239, 68, 68, 204 + Math.sin(time * Math.PI * 2) * 51);
+      p.circle(centerX, yOff + 125, 8);
+    } else if (isOnline) {
+      p.fill(16, 185, 129, 204 + Math.sin(time * Math.PI) * 51);
+      p.circle(centerX - 10, yOff + 125, 4);
+      p.fill(59, 130, 246, 204 + Math.sin(time * Math.PI * 0.8) * 51);
+      p.circle(centerX, yOff + 125, 4);
+    } else {
+      p.fill(245, 158, 11, 204 + Math.sin(time * Math.PI * 1.5) * 51);
+      p.circle(centerX, yOff + 125, 6);
+    }
+
+    // ── Sensor Cylinder ──
+    p.fill(55, 65, 81);
+    p.ellipse(sensorX, sensorY, 30, 50);
+    p.fill(31, 41, 55);
+    p.ellipse(sensorX, sensorY, 24, 44);
+    // Lens
+    p.fill(17, 24, 39);
+    p.circle(sensorX, sensorY + 11, 16);
+    p.fill(0, 0, 0, 204);
+    p.circle(sensorX, sensorY + 11, 12);
+
+    // ── Water visualization ──
+    const waterArea = centerX + 50;
+    const sensorBottomY = sensorY + 25;
+    const groundY = baseY - 5;
+    const totalDist = groundY - sensorBottomY;
+    const scale = totalDist / installH;
+    const waterY = groundY - (waterLevel * scale);
+
+    if (waterLevel > 0) {
+      // Water fill — color by status
+      p.noStroke();
+      if (isDead) {
+        p.fill(239, 68, 68, 102);
+      } else if (isOnline) {
+        p.fill(59, 130, 246, 102);
+      } else {
+        p.fill(245, 158, 11, 102);
+      }
+      p.rect(waterArea, waterY, 150, groundY - waterY);
+
+      // Wave surface
+      if (isDead) {
+        p.stroke(239, 68, 68);
+      } else if (isOnline) {
+        p.stroke(59, 130, 246);
+      } else {
+        p.stroke(245, 158, 11);
+      }
+      p.strokeWeight(2);
+      p.noFill();
+      p.beginShape();
+      for (let x = 0; x <= 150; x += 5) {
+        const wy = waterY + Math.sin((x + time * 50) * 0.05) * 2;
+        p.vertex(waterArea + x, wy);
+      }
+      p.endShape();
+
+      // Ripples at measurement point
+      for (let i = 0; i < 3; i++) {
+        const rt = (time * 1.5 + i * 0.8) % 3;
+        const rr = 5 + rt * 20;
+        const ra = Math.max(0, 1 - rt / 3) * 77;
+        if (ra > 0) {
+          p.noFill();
+          if (isDead) {
+            p.stroke(239, 68, 68, ra);
+          } else if (isOnline) {
+            p.stroke(59, 130, 246, ra);
+          } else {
+            p.stroke(245, 158, 11, ra);
+          }
+          p.strokeWeight(1.5 - rt * 0.5);
+          p.ellipse(sensorX, waterY, rr * 2, rr * 0.5);
+        }
+      }
+    } else {
+      // Dry floor
+      p.noStroke();
+      p.fill(139, 115, 85, 204);
+      p.rect(waterArea, baseY - 5, 150, 5);
+      p.fill(160, 130, 109, 127);
+      for (let x = 0; x < 150; x += 20) {
+        p.rect(waterArea + x, baseY - 5, 10, 5);
+      }
+      // Impact waves on dry floor
+      for (let i = 0; i < 3; i++) {
+        const wt = (time * 2 + i * 0.7) % 3;
+        const wr = 5 + wt * 15;
+        const wa = Math.max(0, 1 - wt / 3) * 102;
+        if (wa > 0) {
+          p.noFill();
+          p.stroke(59, 130, 246, wa);
+          p.strokeWeight(2 - wt * 0.5);
+          p.circle(sensorX, baseY - 5, wr * 2);
+        }
+      }
+    }
+
+    // ── Measurement dashed line ──
+    p.stroke(59, 130, 246, 153);
+    p.strokeWeight(1);
+    p.drawingContext.setLineDash([4, 4]);
+    p.line(sensorX, sensorY + 20, sensorX, waterLevel > 0 ? waterY : baseY - 5);
+    p.drawingContext.setLineDash([]);
+
+    // ── Distance label ──
+    p.noStroke();
+    if (isDead) {
+      p.fill(239, 68, 68);
+    } else if (isOnline) {
+      p.fill(59, 130, 246);
+    } else {
+      p.fill(245, 158, 11);
+    }
+    p.textAlign(p.LEFT, p.CENTER);
+    p.textSize(14);
+    const labelY = waterLevel > 0 ? waterY + 20 : baseY - 30;
+    p.text(waterLevel.toFixed(2) + 'm', sensorX + 5, labelY);
+
+    // ── Installation height guide ──
+    p.stroke(156, 163, 175, 80);
+    p.strokeWeight(1);
+    p.drawingContext.setLineDash([2, 2]);
+    p.line(sensorX, sensorBottomY, sensorX, groundY);
+    p.drawingContext.setLineDash([]);
+    p.line(sensorX - 5, sensorBottomY, sensorX + 5, sensorBottomY);
+    p.line(sensorX - 5, groundY, sensorX + 5, groundY);
+
+    // Installation height label
+    p.noStroke();
+    p.fill(30, 30, 30, 200);
+    p.rect(sensorX + 18, sensorY - 12, 44, 22, 3);
+    p.fill(180, 180, 200);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.textSize(11);
+    p.text(installH.toFixed(1) + 'm', sensorX + 40, sensorY - 1);
+
+    // MAX indicator when at capacity
+    if (Math.abs(waterLevel - installH) < 0.05 && waterLevel > 0) {
+      p.stroke(239, 68, 68, 80);
+      p.strokeWeight(2);
+      p.drawingContext.setLineDash([5, 5]);
+      p.line(waterArea - 10, waterY, waterArea + 160, waterY);
+      p.drawingContext.setLineDash([]);
+      p.noStroke();
+      p.fill(239, 68, 68, 180);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.textSize(10);
+      p.text('MAX', sensorX + 40, sensorY + 14);
+    }
+
+    p.noStroke();
+  };
+}, document.getElementById('viz-container'));
+
+// ===== GENERATE READING =====
+function generateReading() {
+  const baseDepth = parseFloat(document.getElementById('r-depth').value);
+  let depth;
+
+  switch (glitchMode) {
+    case 'normal':
+      depth = baseDepth + (Math.random() - 0.5) * 0.02;
+      break;
+    case 'spike':
+      depth = Math.random() < 0.3 ? 15 + Math.random() * 5 : baseDepth + (Math.random() - 0.5) * 0.02;
+      break;
+    case 'negative':
+      depth = Math.random() < 0.3 ? -(1 + Math.random() * 3) : baseDepth + (Math.random() - 0.5) * 0.02;
+      break;
+    case 'zero':
+      depth = Math.random() < 0.4 ? 0 : baseDepth + (Math.random() - 0.5) * 0.02;
+      break;
+    case 'stuck':
+      if (stuckValue === null) stuckValue = baseDepth;
+      depth = stuckValue;
+      break;
+    case 'gradual':
+      gradualDepth += 0.015;
+      depth = gradualDepth;
+      break;
+    case 'noisy':
+      depth = baseDepth + (Math.random() - 0.5) * 2;
+      break;
+    default:
+      depth = baseDepth;
+  }
+
+  return +depth.toFixed(3);
+}
+
+// ===== VALIDATE =====
+function validate(depth, ts) {
+  if (depth < 0) {
+    return { quality: 'rejected', reason: 'negative depth: ' + depth + 'm' };
+  }
+  if (depth > 20) {
+    return { quality: 'rejected', reason: 'out of range: ' + depth + 'm > 20m' };
+  }
+  if (depth === 0) {
+    lastClean.depth = depth; lastClean.ts = ts;
+    return { quality: 'zero_reading', reason: null };
+  }
+  if (lastClean.depth !== null && lastClean.ts !== null) {
+    const dt = (ts - lastClean.ts) / 1000;
+    if (dt > 0) {
+      const rate = Math.abs(depth - lastClean.depth) / dt;
+      if (rate > MAX_RATE) {
+        return { quality: 'rejected', reason: 'rate ' + rate.toFixed(2) + ' m/s > ' + MAX_RATE + ' m/s (' + lastClean.depth + 'm → ' + depth + 'm in ' + dt.toFixed(1) + 's)' };
+      }
+    }
+  }
+  lastClean.depth = depth; lastClean.ts = ts;
+  return { quality: 'clean', reason: null };
+}
+
+// ===== PUBLISH =====
+function publishReading() {
+  const nickname = document.getElementById('nickname').value || 'SIM001';
+  const installH = parseFloat(document.getElementById('r-install').value);
+  const batt = parseFloat(document.getElementById('r-batt').value) + (Math.random() - 0.5) * 0.2;
+  const depth = generateReading();
+  const ts = Date.now();
+  const now = new Date(ts);
+  const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+
+  const payload = {
+    d_radar_water_depth: depth,
+    d_radar_air_height: +(installH - depth).toFixed(3),
+    d_radar_air_diff: +(installH - depth - (installH - parseFloat(document.getElementById('r-depth').value))).toFixed(3),
+    d_radar_installation_height: installH,
+    d_battery_voltage: +batt.toFixed(1),
+    timestamp: ts,
+  };
+
+  if (mqttClient?.connected) {
+    mqttClient.publish('FloodBoy/' + nickname + '/status', JSON.stringify(payload));
+  }
+
+  const result = validate(depth, ts);
+  stats.total++;
+  if (result.quality === 'clean') stats.clean++;
+  else if (result.quality === 'zero_reading') stats.zero++;
+  else {
+    stats.rejected++;
+    if (result.reason?.includes('rate')) stats.rateExc++;
+  }
+
+  if (mqttClient?.connected) {
+    mqttClient.publish('buffer/' + nickname + '/result', JSON.stringify({
+      nickname, quality: result.quality, reason: result.reason,
+      water_depth: depth, ts,
+    }));
+  }
+
+  // Update chart
+  chart.data.labels.push(timeStr);
+  chart.data.datasets[0].data.push(depth);
+  chart.data.datasets[1].data.push(result.quality === 'clean' || result.quality === 'zero_reading' ? depth : null);
+  chart.data.datasets[2].data.push(result.quality === 'rejected' ? depth : null);
+  if (chart.data.labels.length > MAX_CHART_POINTS) {
+    chart.data.labels.shift();
+    chart.data.datasets.forEach(d => d.data.shift());
+  }
+  chart.update('none');
+
+  addFeedEntry(timeStr, depth, result);
+  addValEntry(timeStr, nickname, depth, result);
+  updateStats();
+}
+
+// ===== FEED =====
+function addFeedEntry(time, depth, result) {
+  const feed = document.getElementById('feed');
+  const cls = result.quality === 'rejected' ? 'rejected' : result.quality === 'zero_reading' ? 'zero' : '';
+  const el = document.createElement('div');
+  el.className = 'feed-entry ' + cls;
+  el.innerHTML = '<span class="ts">' + time + '</span><span class="depth">' + depth.toFixed(3) + 'm</span><span class="mode">' + glitchMode + '</span>';
+  feed.prepend(el);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+}
+
+function addValEntry(time, nickname, depth, result) {
+  const feed = document.getElementById('val-feed');
+  const cls = result.quality === 'rejected' ? 'rejected' : result.quality;
+  const el = document.createElement('div');
+  el.className = 'val-entry ' + cls;
+  const color = cls === 'clean' ? '#3fb950' : cls === 'zero_reading' ? '#fbbf24' : '#f87171';
+  const reasonStr = result.reason ? ' — ' + result.reason : '';
+  el.innerHTML = '<span style="color:' + color + '">' + result.quality + '</span> ' + depth.toFixed(3) + 'm' + reasonStr;
+  feed.prepend(el);
+  while (feed.children.length > MAX_FEED) feed.lastChild.remove();
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = stats.total;
+  const rate = stats.total > 0 ? ((stats.clean + stats.zero) / stats.total * 100).toFixed(1) : 0;
+  document.getElementById('s-rate').textContent = rate + '%';
+  document.getElementById('s-clean').textContent = stats.clean;
+  document.getElementById('s-rejected').textContent = stats.rejected;
+  document.getElementById('s-zero').textContent = stats.zero;
+  document.getElementById('s-rateExc').textContent = stats.rateExc;
+}
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER);
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+    mqttClient.subscribe('buffer/+/result');
+  });
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+}
+
+// ===== START / STOP =====
+window.togglePublish = function() {
+  const btn = document.getElementById('btn-start');
+  if (publishing) {
+    publishing = false;
+    clearInterval(pubTimer);
+    btn.textContent = 'Start Publishing';
+    btn.className = 'start-btn off';
+  } else {
+    publishing = true;
+    const interval = parseInt(document.getElementById('r-interval').value);
+    pubTimer = setInterval(publishReading, interval);
+    btn.textContent = 'Stop Publishing';
+    btn.className = 'start-btn on';
+    stats = { total: 0, clean: 0, rejected: 0, zero: 0, rateExc: 0 };
+    lastClean = { depth: null, ts: null };
+    gradualDepth = 0.5;
+    stuckValue = null;
+    updateStats();
+  }
+};
+
+// ===== URL PARAMS =====
+const params = new URLSearchParams(window.location.search);
+if (params.get('nickname')) document.getElementById('nickname').value = params.get('nickname');
+if (params.get('mode')) {
+  const btn = document.querySelector('.glitch-btn[data-mode="' + params.get('mode') + '"]');
+  if (btn) btn.click();
+}
+if (params.get('auto')) {
+  setTimeout(() => togglePublish(), 500);
+}
+
+// ===== INIT =====
+initMQTT();
+</script>
+</body>
+</html>
