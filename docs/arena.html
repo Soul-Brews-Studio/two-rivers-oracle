@@ -647,7 +647,7 @@ function updateLocalPlayer(delta) {
     localPlayer.z = THREE.MathUtils.clamp(localPlayer.z, -ARENA_SIZE, ARENA_SIZE);
 
     // Face movement direction
-    const targetRy = Math.atan2(-dx, -dz);
+    const targetRy = Math.atan2(-dx, dz);
     localPlayer.ry = lerpAngle(localPlayer.ry, targetRy, 0.2);
 
     const wantAnim = running ? 'Running' : 'Walking';
@@ -724,7 +724,7 @@ function doPunch() {
 
   // Hit detection — check all remote players
   const myPos = new THREE.Vector2(localPlayer.x, localPlayer.z);
-  const forward = new THREE.Vector2(-Math.sin(localPlayer.ry), -Math.cos(localPlayer.ry));
+  const forward = new THREE.Vector2(-Math.sin(localPlayer.ry), Math.cos(localPlayer.ry));
 
   for (const id in remotePlayers) {
     const p = remotePlayers[id];
