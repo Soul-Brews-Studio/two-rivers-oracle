@@ -552,7 +552,8 @@ for (let i = 0; i < 15; i++) {
 
 // --- STATE ---
 let playing = true;
-let followCam = true;
+let camMode = 0; // 0=monitor, 1=on-train, 2=chase, 3=free
+const camModes = ['📡 Monitor', '🚂 On Train', '🎬 Chase', '🎥 Free'];
 let playT = 0;
 let playSpeed = 0.04;
 const clock = new THREE.Clock();
@@ -588,13 +589,15 @@ window.togglePlay = () => {
 };
 
 window.toggleCamera = () => {
-  followCam = !followCam;
-  document.getElementById('camBtn').textContent = followCam ? '📡 Monitor' : '🎥 Free';
-  document.getElementById('camBtn').classList.toggle('active', followCam);
-  if (!followCam) {
+  camMode = (camMode + 1) % camModes.length;
+  document.getElementById('camBtn').textContent = camModes[camMode];
+  document.getElementById('camBtn').classList.toggle('active', camMode !== 3);
+  if (camMode === 3) {
+    controls.enabled = true;
     controls.enableRotate = true;
     controls.enablePan = true;
-    camera.position.set(0, 40, 0.1);
+    controls.enableZoom = true;
+    camera.position.set(5, 25, 35);
     controls.target.set(0, 0, -5);
   }
 };
@@ -602,10 +605,10 @@ window.toggleCamera = () => {
 window.resetView = () => {
   playT = 0;
   playing = false;
-  followCam = false;
+  camMode = 0;
   document.getElementById('playBtn').textContent = '▶ Depart';
   document.getElementById('playBtn').classList.remove('active');
-  document.getElementById('camBtn').classList.remove('active');
+  document.getElementById('camBtn').textContent = camModes[0];
   controls.enabled = true;
   controls.enableRotate = true;
   controls.enablePan = true;
@@ -666,14 +669,40 @@ function animate() {
   }
   document.getElementById('progressBar').style.width = (playT * 100) + '%';
 
-  // Monitor camera — fixed position, train moves underneath, scroll to zoom
-  if (followCam && locomotive.visible) {
-    controls.enabled = true;
-    controls.enableRotate = false;
-    controls.enablePan = false;
-    controls.enableZoom = true;
-    controls.target.copy(locomotive.position);
-    controls.update();
+  // Camera modes
+  if (camMode !== 3 && locomotive.visible) {
+    const lp = locomotive.position;
+    const tan = curve.getTangentAt(Math.min(playT, 0.999)).normalize();
+    const right = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0)).normalize();
+
+    if (camMode === 0) {
+      // Monitor — top-down, scroll zoom only
+      controls.enabled = true;
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.enableZoom = true;
+      controls.target.copy(lp);
+      controls.update();
+    } else if (camMode === 1) {
+      // On train — sitting on top looking forward
+      controls.enabled = false;
+      const lookAhead = lp.clone().add(tan.clone().multiplyScalar(6));
+      lookAhead.y = lp.y + 0.3;
+      const camPos = lp.clone().add(new THREE.Vector3(0, 1.8, 0));
+      camera.position.lerp(camPos, 0.1);
+      camera.lookAt(lookAhead);
+    } else if (camMode === 2) {
+      // Chase — behind and above, cinematic
+      controls.enabled = false;
+      const lookAhead = lp.clone().add(tan.clone().multiplyScalar(10));
+      lookAhead.y = lp.y + 0.8;
+      const camPos = lp.clone()
+        .add(new THREE.Vector3(0, 5, 0))
+        .sub(tan.clone().multiplyScalar(8))
+        .add(right.clone().multiplyScalar(2));
+      camera.position.lerp(camPos, 0.03);
+      camera.lookAt(lookAhead);
+    }
   } else {
     controls.enabled = true;
     controls.enableRotate = true;
