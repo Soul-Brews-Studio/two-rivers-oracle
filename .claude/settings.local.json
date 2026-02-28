@@ -1,12 +1,30 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gh:*)", "Bash(ghq:*)", "Bash(git:*)",
-      "Bash(bun:*)", "Bash(mkdir:*)", "Bash(ln:*)",
-      "Bash(rg:*)", "Bash(date:*)", "Bash(ls:*)",
-      "Bash(*ψ/*)", "Bash(*psi/*)",
-      "Skill(learn)", "Skill(trace)", "Skill(awaken)",
-      "Skill(rrr)", "Skill(recap)", "Skill(project)"
+      "Bash(gh:*)",
+      "Bash(ghq:*)",
+      "Bash(git:*)",
+      "Bash(bun:*)",
+      "Bash(mkdir:*)",
+      "Bash(ln:*)",
+      "Bash(rg:*)",
+      "Bash(date:*)",
+      "Bash(ls:*)",
+      "Bash(*ψ/*)",
+      "Bash(*psi/*)",
+      "Skill(learn)",
+      "Skill(trace)",
+      "Skill(awaken)",
+      "Skill(rrr)",
+      "Skill(recap)",
+      "Skill(project)",
+      "mcp__oracle-v2__oracle_search",
+      "Bash(gh search:*)",
+      "Bash(gh issue list --repo Soul-Brews-Studio/two-rivers-oracle --search \"floodboy\" --limit 10)",
+      "Bash(ghq list)",
+      "Bash(find:*)",
+      "Bash(grep -i \"flood\" /Users/nat/Code/github.com/Soul-Brews-Studio/two-rivers-oracle/ψ/writing/*.md)",
+      "mcp__oracle-v2__oracle_trace"
     ]
   }
 }
