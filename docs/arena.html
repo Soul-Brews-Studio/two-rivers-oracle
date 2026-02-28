@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arena — สองแคว Workshop</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, 'Noto Sans Thai', sans-serif; overflow: hidden; }
+  #canvas-container { width: 100vw; height: 100vh; }
+
+  /* ===== JOIN SCREEN ===== */
+  .join-screen {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(13, 17, 23, 0.95);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(12px);
+  }
+  .join-screen.hidden { display: none; }
+  .join-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 16px;
+    padding: 2.5rem; text-align: center; max-width: 360px; width: 90%;
+  }
+  .join-card h1 {
+    font-size: 1.8rem; margin-bottom: 4px;
+    background: linear-gradient(135deg, #f87171, #fbbf24);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .join-card .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .join-card input {
+    width: 100%; padding: 12px 16px; margin-bottom: 1rem;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    color: #e6edf3; font-size: 1rem; outline: none;
+  }
+  .join-card input:focus { border-color: #58a6ff; }
+  .join-card button {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: linear-gradient(135deg, #f87171, #fbbf24);
+    color: #0d1117; font-size: 1rem; font-weight: 700; cursor: pointer;
+  }
+  .join-card button:hover { opacity: 0.9; }
+  .join-card .hint { color: #484f58; font-size: 0.7rem; margin-top: 1rem; }
+
+  /* ===== LOADING ===== */
+  .loading-overlay {
+    position: fixed; inset: 0; z-index: 250;
+    background: #0d1117; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loading-text { color: #f87171; font-size: 1.1rem; }
+  .loading-sub { color: #8b949e; font-size: 0.85rem; }
+
+  /* ===== HUD (top-left) ===== */
+  .hud {
+    position: absolute; top: 12px; left: 12px; z-index: 100;
+    background: rgba(13, 17, 23, 0.85); border: 1px solid #30363d;
+    border-radius: 10px; padding: 12px 16px; font-size: 0.8rem;
+    backdrop-filter: blur(8px); min-width: 180px;
+  }
+  .hud h2 { color: #f87171; font-size: 1rem; margin-bottom: 2px; }
+  .hud .sub { color: #8b949e; font-size: 0.7rem; margin-bottom: 8px; }
+  .status-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; font-size: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .player-list { margin-top: 6px; }
+  .player-entry { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; margin: 2px 0; }
+  .player-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ===== HEALTH BAR (top-center) ===== */
+  .hp-bar-wrap {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100;
+    text-align: center;
+  }
+  .hp-bar-wrap.hidden { display: none; }
+  .hp-name { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+  .hp-bar-outer {
+    width: 240px; height: 16px; border-radius: 8px;
+    background: #21262d; border: 1px solid #30363d; overflow: hidden;
+  }
+  .hp-bar-inner {
+    height: 100%; border-radius: 8px; transition: width 0.3s, background 0.3s;
+    background: #3fb950;
+  }
+  .hp-text { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+
+  /* ===== KILL FEED (bottom-left) ===== */
+  .kill-feed {
+    position: absolute; bottom: 50px; left: 12px; z-index: 100;
+    display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+  }
+  .kill-entry {
+    background: rgba(13, 17, 23, 0.8); border-radius: 6px;
+    padding: 4px 10px; font-size: 0.7rem; color: #8b949e;
+    backdrop-filter: blur(4px); opacity: 1; transition: opacity 0.5s;
+  }
+  .kill-entry.fade { opacity: 0; }
+
+  /* ===== CONTROLS HINT (bottom-right) ===== */
+  .controls-hint {
+    position: absolute; bottom: 12px; right: 12px; z-index: 100;
+    background: rgba(13, 17, 23, 0.7); border: 1px solid #30363d;
+    border-radius: 8px; padding: 8px 12px; font-size: 0.65rem; color: #484f58;
+    backdrop-filter: blur(4px);
+  }
+  .controls-hint kbd {
+    display: inline-block; padding: 1px 5px; border-radius: 3px;
+    background: #21262d; border: 1px solid #30363d; color: #8b949e;
+    font-family: monospace; font-size: 0.65rem;
+  }
+
+  /* ===== DAMAGE FLASH ===== */
+  .damage-flash {
+    position: fixed; inset: 0; z-index: 150; pointer-events: none;
+    background: rgba(248, 113, 113, 0.3); opacity: 0; transition: opacity 0.1s;
+  }
+  .damage-flash.active { opacity: 1; }
+
+  footer {
+    position: absolute; bottom: 12px; left: 12px; z-index: 90;
+    color: #484f58; font-size: 0.65rem;
+  }
+  footer a { color: #58a6ff; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- Join Screen -->
+<div class="join-screen" id="join-screen">
+  <div class="join-card">
+    <h1>⚔️ Arena</h1>
+    <div class="sub">MQTT Multiplayer Battle — Oracle vs Oracle</div>
+    <input type="text" id="name-input" placeholder="Your Oracle name..." maxlength="20" autocomplete="off">
+    <button id="btn-join" onclick="joinGame()">Enter Arena</button>
+    <div class="hint">WASD move · Shift run · Space punch</div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loading">
+  <div class="loading-text">Loading Arena...</div>
+  <div class="loading-sub" id="load-status">Initializing...</div>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- HUD -->
+<div class="hud" id="hud" style="display:none;">
+  <h2>⚔️ Arena</h2>
+  <div class="sub">Oracle Battle — MQTT PVP</div>
+  <div class="status-row"><div class="dot wait" id="dot-mqtt"></div><span id="status-mqtt">mqtt: connecting...</span></div>
+  <div class="status-row"><span id="status-players" style="color:#8b949e;">players: 0</span></div>
+  <div class="player-list" id="player-list"></div>
+</div>
+
+<!-- Health Bar -->
+<div class="hp-bar-wrap hidden" id="hp-bar-wrap">
+  <div class="hp-name" id="hp-name">—</div>
+  <div class="hp-bar-outer"><div class="hp-bar-inner" id="hp-bar-inner" style="width:100%"></div></div>
+  <div class="hp-text" id="hp-text">100 / 100</div>
+</div>
+
+<!-- Kill Feed -->
+<div class="kill-feed" id="kill-feed"></div>
+
+<!-- Controls Hint -->
+<div class="controls-hint" id="controls-hint" style="display:none;">
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;
+  <kbd>Shift</kbd> run &nbsp;
+  <kbd>Space</kbd> punch
+</div>
+
+<!-- Damage Flash -->
+<div class="damage-flash" id="damage-flash"></div>
+
+<footer>
+  <a href="index.html">PSRU Workshop</a> · <a href="robot-ik.html">Robot IK</a> · <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a><br>
+  Two Rivers (สองแคว) — Arena MQTT PVP
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+// ===== CONSTANTS =====
+const ARENA_SIZE = 8;
+const WALK_SPEED = 3;
+const RUN_SPEED = 6;
+const PUNCH_RANGE = 1.8;
+const PUNCH_DAMAGE = 15;
+const MAX_HP = 100;
+const RESPAWN_TIME = 3000;
+const SYNC_RATE = 100;
+const STALE_TIMEOUT = 5000;
+
+const PLAYER_COLORS = [0x58a6ff, 0x3fb950, 0xf778ba, 0xfbbf24, 0xf87171, 0xa371f7];
+const SPAWN_POINTS = [
+  { x: 0, z: -5 }, { x: 4.3, z: 2.5 }, { x: -4.3, z: 2.5 },
+  { x: 0, z: 5 }, { x: 4.3, z: -2.5 }, { x: -4.3, z: -2.5 },
+];
+
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const MODEL_URL = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+
+const states = ['Idle', 'Walking', 'Running', 'Dance', 'Death', 'Sitting', 'Standing'];
+const emotes = ['Jump', 'Yes', 'No', 'Wave', 'Punch', 'ThumbsUp'];
+
+// ===== STATE =====
+let scene, camera, renderer;
+let localPlayer = null;
+const remotePlayers = {};
+let gltfData = null;
+const clock = new THREE.Clock();
+const keys = {};
+let mqttClient = null;
+let syncInterval = null;
+
+// ===== HELPERS =====
+function genId() {
+  return Math.random().toString(16).substring(2, 8);
+}
+
+function lerpAngle(a, b, t) {
+  let d = b - a;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return a + d * t;
+}
+
+function hexStr(n) {
+  return '#' + n.toString(16).padStart(6, '0');
+}
+
+function setLoadStatus(t) {
+  document.getElementById('load-status').textContent = t;
+}
+
+// ===== INIT SCENE =====
+async function initScene() {
+  const container = document.getElementById('canvas-container');
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0d1117, 0.06);
+  scene.background = new THREE.Color(0x0d1117);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.25, 100);
+  camera.position.set(0, 8, 12);
+  camera.lookAt(0, 0, 0);
+
+  // Lighting
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 2.5);
+  hemi.position.set(0, 20, 0);
+  scene.add(hemi);
+
+  const dir = new THREE.DirectionalLight(0xffeedd, 3);
+  dir.position.set(5, 15, 10);
+  dir.castShadow = true;
+  dir.shadow.camera.top = 10; dir.shadow.camera.bottom = -10;
+  dir.shadow.camera.left = -10; dir.shadow.camera.right = 10;
+  dir.shadow.camera.near = 0.1; dir.shadow.camera.far = 40;
+  dir.shadow.mapSize.set(1024, 1024);
+  scene.add(dir);
+
+  const rim = new THREE.DirectionalLight(0xf87171, 1.2);
+  rim.position.set(-8, 4, -8);
+  scene.add(rim);
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(50, 50),
+    new THREE.MeshPhongMaterial({ color: 0x161b22, depthWrite: false })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Grid
+  const grid = new THREE.GridHelper(20, 40, 0x30363d, 0x21262d);
+  grid.material.opacity = 0.5;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  // Arena boundary lines
+  const bMat = new THREE.LineBasicMaterial({ color: 0xf87171, transparent: true, opacity: 0.4 });
+  const bPts = [
+    new THREE.Vector3(-ARENA_SIZE, 0.05, -ARENA_SIZE),
+    new THREE.Vector3(ARENA_SIZE, 0.05, -ARENA_SIZE),
+    new THREE.Vector3(ARENA_SIZE, 0.05, ARENA_SIZE),
+    new THREE.Vector3(-ARENA_SIZE, 0.05, ARENA_SIZE),
+    new THREE.Vector3(-ARENA_SIZE, 0.05, -ARENA_SIZE),
+  ];
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(bPts), bMat));
+
+  // Pillars
+  const pillarGeo = new THREE.CylinderGeometry(0.35, 0.35, 3.5, 8);
+  const pillarMat = new THREE.MeshPhongMaterial({ color: 0x30363d });
+  for (const [px, pz] of [[-4, -4], [-4, 4], [4, -4], [4, 4]]) {
+    const p = new THREE.Mesh(pillarGeo, pillarMat);
+    p.position.set(px, 1.75, pz);
+    p.castShadow = true;
+    p.receiveShadow = true;
+    scene.add(p);
+  }
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+// ===== LOAD MODEL =====
+async function loadModel() {
+  setLoadStatus('Loading RobotExpressive...');
+  const loader = new GLTFLoader();
+  gltfData = await loader.loadAsync(MODEL_URL);
+  setLoadStatus('Model ready');
+}
+
+// ===== CREATE PLAYER =====
+function createPlayer(id, name, colorHex, isLocal) {
+  const clone = SkeletonUtils.clone(gltfData.scene);
+  scene.add(clone);
+
+  // Tint with emissive color
+  clone.traverse(child => {
+    if (child.isMesh && child.material) {
+      child.material = child.material.clone();
+      child.material.emissive = new THREE.Color(colorHex);
+      child.material.emissiveIntensity = 0.2;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  // Animation mixer
+  const mixer = new THREE.AnimationMixer(clone);
+  const actions = {};
+  for (const clip of gltfData.animations) {
+    const action = mixer.clipAction(clip);
+    actions[clip.name] = action;
+    if (emotes.includes(clip.name)) {
+      action.clampWhenFinished = true;
+      action.loop = THREE.LoopOnce;
+    }
+  }
+  actions['Idle'].play();
+
+  // Face mesh for morphs
+  const face = clone.getObjectByName('Head_4');
+
+  // Name sprite
+  const sprite = makeNameSprite(name, colorHex, MAX_HP);
+  clone.add(sprite);
+
+  // Spawn position
+  const sp = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
+
+  const player = {
+    id, name, color: colorHex, isLocal,
+    hp: MAX_HP, alive: true,
+    x: sp.x, z: sp.z, ry: 0,
+    targetX: sp.x, targetZ: sp.z, targetRy: 0,
+    anim: 'Idle',
+    model: clone, mixer, actions, activeAction: actions['Idle'],
+    face, sprite,
+    punchCooldown: false,
+    lastUpdate: Date.now(),
+  };
+
+  clone.position.set(sp.x, 0, sp.z);
+  return player;
+}
+
+// ===== NAME SPRITE =====
+function makeNameSprite(name, colorHex, hp) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  drawNameCanvas(canvas, name, colorHex, hp);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2, 0.5, 1);
+  sprite.position.set(0, 2.4, 0);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+
+function drawNameCanvas(canvas, name, colorHex, hp) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 256, 64);
+
+  // Background
+  ctx.fillStyle = 'rgba(13,17,23,0.75)';
+  ctx.beginPath();
+  ctx.rect(8, 2, 240, 60);
+  ctx.fill();
+
+  // Name
+  ctx.fillStyle = hexStr(colorHex);
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(name.substring(0, 14), 128, 26);
+
+  // HP bar background
+  ctx.fillStyle = '#21262d';
+  ctx.fillRect(28, 36, 200, 10);
+
+  // HP bar fill
+  const ratio = Math.max(0, hp / MAX_HP);
+  ctx.fillStyle = ratio > 0.6 ? '#3fb950' : ratio > 0.3 ? '#fbbf24' : '#f87171';
+  ctx.fillRect(28, 36, 200 * ratio, 10);
+}
+
+function updateNameSprite(player) {
+  const canvas = player.sprite.material.map.image;
+  drawNameCanvas(canvas, player.name, player.color, player.hp);
+  player.sprite.material.map.needsUpdate = true;
+}
+
+// ===== ANIMATION HELPERS =====
+function fadeToAction(player, name, duration) {
+  if (!player.actions[name]) return;
+  const prev = player.activeAction;
+  const next = player.actions[name];
+  if (prev === next) return;
+
+  prev.fadeOut(duration);
+  next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(duration).play();
+  player.activeAction = next;
+}
+
+function triggerEmote(player, emoteName, onDone) {
+  if (!player.actions[emoteName]) return;
+  fadeToAction(player, emoteName, 0.2);
+  player.anim = emoteName;
+
+  function restore() {
+    player.mixer.removeEventListener('finished', restore);
+    if (player.alive) {
+      fadeToAction(player, 'Idle', 0.2);
+      player.anim = 'Idle';
+    }
+    if (onDone) onDone();
+  }
+  player.mixer.addEventListener('finished', restore);
+}
+
+// ===== INPUT =====
+function setupInput() {
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'Space') { e.preventDefault(); doPunch(); }
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+}
+
+// ===== LOCAL PLAYER UPDATE =====
+function updateLocalPlayer(delta) {
+  if (!localPlayer || !localPlayer.alive) return;
+  if (localPlayer.punchCooldown) return;
+
+  const fwd = keys['KeyW'] || keys['ArrowUp'];
+  const back = keys['KeyS'] || keys['ArrowDown'];
+  const left = keys['KeyA'] || keys['ArrowLeft'];
+  const right = keys['KeyD'] || keys['ArrowRight'];
+  const running = keys['ShiftLeft'] || keys['ShiftRight'];
+  const moving = fwd || back || left || right;
+
+  if (moving) {
+    let dx = 0, dz = 0;
+    if (fwd) dz -= 1;
+    if (back) dz += 1;
+    if (left) dx -= 1;
+    if (right) dx += 1;
+    const len = Math.sqrt(dx * dx + dz * dz) || 1;
+    dx /= len; dz /= len;
+
+    const speed = running ? RUN_SPEED : WALK_SPEED;
+    localPlayer.x += dx * speed * delta;
+    localPlayer.z += dz * speed * delta;
+    localPlayer.x = THREE.MathUtils.clamp(localPlayer.x, -ARENA_SIZE, ARENA_SIZE);
+    localPlayer.z = THREE.MathUtils.clamp(localPlayer.z, -ARENA_SIZE, ARENA_SIZE);
+
+    // Face movement direction
+    const targetRy = Math.atan2(-dx, -dz);
+    localPlayer.ry = lerpAngle(localPlayer.ry, targetRy, 0.2);
+
+    const wantAnim = running ? 'Running' : 'Walking';
+    if (localPlayer.anim !== wantAnim) {
+      fadeToAction(localPlayer, wantAnim, 0.2);
+      localPlayer.anim = wantAnim;
+    }
+  } else {
+    if (localPlayer.anim !== 'Idle' && !localPlayer.punchCooldown) {
+      fadeToAction(localPlayer, 'Idle', 0.2);
+      localPlayer.anim = 'Idle';
+    }
+  }
+
+  localPlayer.model.position.set(localPlayer.x, 0, localPlayer.z);
+  localPlayer.model.rotation.y = localPlayer.ry;
+}
+
+// ===== REMOTE PLAYER UPDATE =====
+function updateRemotePlayers(delta) {
+  const now = Date.now();
+  const toRemove = [];
+
+  for (const id in remotePlayers) {
+    const p = remotePlayers[id];
+
+    // Interpolate
+    p.x = THREE.MathUtils.lerp(p.x, p.targetX, 0.15);
+    p.z = THREE.MathUtils.lerp(p.z, p.targetZ, 0.15);
+    p.ry = lerpAngle(p.ry, p.targetRy, 0.15);
+
+    p.model.position.set(p.x, 0, p.z);
+    p.model.rotation.y = p.ry;
+    p.mixer.update(delta);
+
+    // Stale check
+    if (now - p.lastUpdate > STALE_TIMEOUT) {
+      toRemove.push(id);
+    }
+  }
+
+  for (const id of toRemove) removePlayer(id);
+}
+
+function removePlayer(id) {
+  const p = remotePlayers[id];
+  if (!p) return;
+  scene.remove(p.model);
+  p.mixer.stopAllAction();
+  delete remotePlayers[id];
+  addKillFeed(`${p.name} left the arena`);
+  updateHUD();
+}
+
+// ===== CAMERA =====
+function updateCamera() {
+  if (!localPlayer) return;
+  const target = new THREE.Vector3(localPlayer.x, 6, localPlayer.z + 10);
+  camera.position.lerp(target, 0.08);
+  camera.lookAt(localPlayer.x, 1, localPlayer.z);
+}
+
+// ===== COMBAT =====
+function doPunch() {
+  if (!localPlayer || !localPlayer.alive || localPlayer.punchCooldown) return;
+  localPlayer.punchCooldown = true;
+
+  triggerEmote(localPlayer, 'Punch', () => {
+    localPlayer.punchCooldown = false;
+  });
+
+  // Publish punch action
+  publishAction({ type: 'punch', ts: Date.now() });
+
+  // Hit detection — check all remote players
+  const myPos = new THREE.Vector2(localPlayer.x, localPlayer.z);
+  const forward = new THREE.Vector2(-Math.sin(localPlayer.ry), -Math.cos(localPlayer.ry));
+
+  for (const id in remotePlayers) {
+    const p = remotePlayers[id];
+    if (!p.alive) continue;
+
+    const theirPos = new THREE.Vector2(p.x, p.z);
+    const dist = myPos.distanceTo(theirPos);
+    if (dist > PUNCH_RANGE) continue;
+
+    // Check facing direction (120° cone)
+    const toTarget = theirPos.clone().sub(myPos).normalize();
+    const dot = forward.dot(toTarget);
+    if (dot < 0.3) continue; // Not facing target
+
+    // Hit!
+    publishAction({ type: 'hit', targetId: id, damage: PUNCH_DAMAGE, ts: Date.now() });
+  }
+}
+
+function applyDamage(targetPlayer, damage, attackerName) {
+  if (!targetPlayer.alive) return;
+  targetPlayer.hp = Math.max(0, targetPlayer.hp - damage);
+  updateNameSprite(targetPlayer);
+
+  // Brief surprised expression
+  if (targetPlayer.face) {
+    const idx = targetPlayer.face.morphTargetDictionary?.['Surprised'];
+    if (idx !== undefined) targetPlayer.face.morphTargetInfluences[idx] = 0.8;
+  }
+
+  if (targetPlayer.isLocal) {
+    updateHPBar();
+    showDamageFlash();
+  }
+
+  if (targetPlayer.hp <= 0) {
+    killPlayer(targetPlayer, attackerName);
+  }
+}
+
+function killPlayer(player, killerName) {
+  player.alive = false;
+  player.anim = 'Death';
+  fadeToAction(player, 'Death', 0.2);
+
+  // Death expression
+  if (player.face) {
+    const idx = player.face.morphTargetDictionary?.['Surprised'];
+    if (idx !== undefined) player.face.morphTargetInfluences[idx] = 0.8;
+  }
+
+  if (killerName) {
+    addKillFeed(`${killerName} eliminated ${player.name}`, '#f87171');
+  }
+
+  if (player.isLocal) {
+    publishAction({ type: 'death', ts: Date.now() });
+    setTimeout(() => respawnPlayer(player), RESPAWN_TIME);
+  }
+}
+
+function respawnPlayer(player) {
+  const sp = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
+  player.x = sp.x; player.z = sp.z; player.ry = 0;
+  player.targetX = sp.x; player.targetZ = sp.z; player.targetRy = 0;
+  player.hp = MAX_HP;
+  player.alive = true;
+  player.model.position.set(sp.x, 0, sp.z);
+  player.model.rotation.y = 0;
+
+  fadeToAction(player, 'Idle', 0.5);
+  player.anim = 'Idle';
+  updateNameSprite(player);
+
+  // Reset morphs
+  if (player.face) {
+    for (let i = 0; i < player.face.morphTargetInfluences.length; i++) {
+      player.face.morphTargetInfluences[i] = 0;
+    }
+  }
+
+  if (player.isLocal) {
+    updateHPBar();
+    publishAction({ type: 'respawn', ts: Date.now() });
+    addKillFeed(`${player.name} respawned`, '#3fb950');
+  }
+}
+
+// ===== MORPH EXPRESSIONS (HP-reactive) =====
+function updateMorphs(player) {
+  if (!player.face || !player.face.morphTargetDictionary) return;
+  const dict = player.face.morphTargetDictionary;
+
+  // Decay all morphs
+  for (let i = 0; i < player.face.morphTargetInfluences.length; i++) {
+    player.face.morphTargetInfluences[i] *= 0.95;
+  }
+
+  if (!player.alive) return;
+
+  const ratio = player.hp / MAX_HP;
+  if (ratio < 0.3) {
+    setMorph(player, 'Angry', 0.7);
+  } else if (ratio < 0.6) {
+    setMorph(player, 'Angry', 0.5);
+  }
+  // ratio > 0.6 → neutral (decays to zero)
+}
+
+function setMorph(player, name, target) {
+  if (!player.face) return;
+  const idx = player.face.morphTargetDictionary?.[name];
+  if (idx === undefined) return;
+  player.face.morphTargetInfluences[idx] = THREE.MathUtils.lerp(
+    player.face.morphTargetInfluences[idx], target, 0.1
+  );
+}
+
+// ===== MQTT =====
+function initMQTT() {
+  mqttClient = mqtt.connect(MQTT_BROKER, {
+    will: {
+      topic: `arena/leave/${localPlayer.id}`,
+      payload: JSON.stringify({ id: localPlayer.id, ts: Date.now() }),
+      qos: 0, retain: false,
+    }
+  });
+
+  mqttClient.on('connect', () => {
+    document.getElementById('dot-mqtt').className = 'dot on';
+    document.getElementById('status-mqtt').textContent = 'mqtt: connected';
+    mqttClient.subscribe('arena/#');
+
+    // Announce join
+    mqttClient.publish('arena/join', JSON.stringify({
+      id: localPlayer.id, name: localPlayer.name, color: localPlayer.color, ts: Date.now()
+    }));
+
+    // Start state sync at 10Hz
+    syncInterval = setInterval(publishState, SYNC_RATE);
+  });
+
+  mqttClient.on('message', handleMessage);
+  mqttClient.on('offline', () => {
+    document.getElementById('dot-mqtt').className = 'dot off';
+    document.getElementById('status-mqtt').textContent = 'mqtt: offline';
+  });
+
+  window.addEventListener('beforeunload', () => {
+    if (mqttClient && localPlayer) {
+      mqttClient.publish(`arena/leave/${localPlayer.id}`,
+        JSON.stringify({ id: localPlayer.id, ts: Date.now() }));
+    }
+  });
+}
+
+function publishState() {
+  if (!mqttClient?.connected || !localPlayer) return;
+  mqttClient.publish(`arena/state/${localPlayer.id}`, JSON.stringify({
+    x: +localPlayer.x.toFixed(2),
+    z: +localPlayer.z.toFixed(2),
+    ry: +localPlayer.ry.toFixed(2),
+    anim: localPlayer.anim,
+    hp: localPlayer.hp,
+    name: localPlayer.name,
+    color: localPlayer.color,
+    alive: localPlayer.alive,
+    ts: Date.now(),
+  }));
+}
+
+function publishAction(data) {
+  if (!mqttClient?.connected || !localPlayer) return;
+  mqttClient.publish(`arena/action/${localPlayer.id}`, JSON.stringify(data));
+}
+
+function handleMessage(topic, message) {
+  let data;
+  try { data = JSON.parse(message.toString()); } catch { return; }
+
+  const parts = topic.split('/');
+  if (parts[0] !== 'arena') return;
+  const type = parts[1];
+  const senderId = parts[2];
+
+  // Ignore own messages
+  if (senderId === localPlayer?.id) return;
+
+  if (type === 'join') {
+    addKillFeed(`${data.name} joined the arena`, hexStr(data.color));
+  }
+
+  if (type === 'state') {
+    if (!remotePlayers[senderId]) {
+      // Create new remote player
+      const p = createPlayer(senderId, data.name || 'Unknown', data.color || 0x8b949e, false);
+      remotePlayers[senderId] = p;
+      addKillFeed(`${data.name || 'Unknown'} appeared`);
+      updateHUD();
+    }
+
+    const p = remotePlayers[senderId];
+    p.targetX = data.x;
+    p.targetZ = data.z;
+    p.targetRy = data.ry;
+    p.hp = data.hp;
+    p.alive = data.alive !== false;
+    p.lastUpdate = Date.now();
+
+    if (data.anim !== p.anim) {
+      fadeToAction(p, data.anim, 0.2);
+      p.anim = data.anim;
+    }
+
+    updateNameSprite(p);
+  }
+
+  if (type === 'action') {
+    if (data.type === 'hit' && data.targetId === localPlayer?.id) {
+      // We got hit
+      const attackerName = remotePlayers[senderId]?.name || 'Unknown';
+      applyDamage(localPlayer, data.damage || PUNCH_DAMAGE, attackerName);
+    }
+  }
+
+  if (type === 'leave') {
+    removePlayer(senderId);
+  }
+}
+
+// ===== HUD =====
+function updateHUD() {
+  const total = 1 + Object.keys(remotePlayers).length;
+  document.getElementById('status-players').textContent = `players: ${total}`;
+
+  const list = document.getElementById('player-list');
+  let html = '';
+
+  // Local player
+  if (localPlayer) {
+    html += `<div class="player-entry">
+      <div class="player-dot" style="background:${hexStr(localPlayer.color)}"></div>
+      <span style="color:${hexStr(localPlayer.color)}">${localPlayer.name} (you)</span>
+    </div>`;
+  }
+
+  // Remote players
+  for (const id in remotePlayers) {
+    const p = remotePlayers[id];
+    html += `<div class="player-entry">
+      <div class="player-dot" style="background:${hexStr(p.color)}"></div>
+      <span>${p.name}</span>
+    </div>`;
+  }
+
+  list.innerHTML = html;
+}
+
+function updateHPBar() {
+  if (!localPlayer) return;
+  const ratio = localPlayer.hp / MAX_HP;
+  const bar = document.getElementById('hp-bar-inner');
+  bar.style.width = (ratio * 100) + '%';
+  bar.style.background = ratio > 0.6 ? '#3fb950' : ratio > 0.3 ? '#fbbf24' : '#f87171';
+  document.getElementById('hp-text').textContent = `${localPlayer.hp} / ${MAX_HP}`;
+}
+
+// ===== KILL FEED =====
+function addKillFeed(text, color) {
+  const container = document.getElementById('kill-feed');
+  const el = document.createElement('div');
+  el.className = 'kill-entry';
+  el.innerHTML = color ? `<span style="color:${color}">${text}</span>` : text;
+  container.appendChild(el);
+
+  // Remove after 4s
+  setTimeout(() => { el.classList.add('fade'); }, 3500);
+  setTimeout(() => { el.remove(); }, 4000);
+
+  // Keep max 6 entries
+  while (container.children.length > 6) {
+    container.firstChild.remove();
+  }
+}
+
+// ===== DAMAGE FLASH =====
+function showDamageFlash() {
+  const el = document.getElementById('damage-flash');
+  el.classList.add('active');
+  setTimeout(() => el.classList.remove('active'), 150);
+}
+
+// ===== JOIN FLOW =====
+const params = new URLSearchParams(window.location.search);
+const urlName = params.get('name');
+if (urlName) document.getElementById('name-input').value = urlName;
+
+// Enter key to join
+document.getElementById('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinGame();
+});
+
+window.joinGame = async function() {
+  const input = document.getElementById('name-input');
+  const name = input.value.trim() || 'Oracle';
+
+  document.getElementById('join-screen').classList.add('hidden');
+  document.getElementById('loading').classList.remove('hidden');
+
+  try {
+    await initScene();
+    await loadModel();
+
+    setLoadStatus('Creating player...');
+    const id = genId();
+    const colorIdx = parseInt(id.substring(0, 2), 16) % PLAYER_COLORS.length;
+    localPlayer = createPlayer(id, name, PLAYER_COLORS[colorIdx], true);
+
+    setupInput();
+
+    // Show UI
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('hud').style.display = '';
+    document.getElementById('hp-bar-wrap').classList.remove('hidden');
+    document.getElementById('controls-hint').style.display = '';
+    document.getElementById('hp-name').textContent = name;
+    document.getElementById('hp-name').style.color = hexStr(PLAYER_COLORS[colorIdx]);
+
+    updateHPBar();
+    updateHUD();
+
+    initMQTT();
+
+    // Start render
+    renderer.setAnimationLoop(animate);
+  } catch (e) {
+    setLoadStatus('Error: ' + e.message);
+    console.error(e);
+  }
+};
+
+// Auto-join if ?name= provided
+if (urlName) {
+  setTimeout(() => joinGame(), 100);
+}
+
+// ===== ANIMATE =====
+function animate() {
+  const delta = clock.getDelta();
+
+  updateLocalPlayer(delta);
+  if (localPlayer) {
+    localPlayer.mixer.update(delta);
+    updateMorphs(localPlayer);
+  }
+  updateRemotePlayers(delta);
+
+  // Update morphs for remote players
+  for (const id in remotePlayers) {
+    updateMorphs(remotePlayers[id]);
+  }
+
+  updateCamera();
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
