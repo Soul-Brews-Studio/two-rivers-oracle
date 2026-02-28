@@ -5,5 +5,8 @@ memory/logs/
 # Origin symlinks (source lives in ghq)
 learn/**/origin
 
+# Generated audio
+lab/github-pages-workshop/audio/
+
 # State files
 .awaken-state.json
