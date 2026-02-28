@@ -6,36 +6,37 @@
 <title>🚂 Night Train — Chiang Mai → Phitsanulok</title>
 <style>
   * { margin: 0; padding: 0; }
-  body { background: #050510; overflow: hidden; font-family: -apple-system, 'Noto Sans Thai', sans-serif; }
+  body { background: #87CEEB; overflow: hidden; font-family: -apple-system, 'Noto Sans Thai', sans-serif; }
   canvas { display: block; }
   #hud {
     position: absolute; top: 16px; left: 16px;
     color: #e6edf3; z-index: 10;
-    background: rgba(5, 5, 16, 0.85);
-    border: 1px solid rgba(88, 166, 255, 0.3);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     padding: 16px 20px;
     backdrop-filter: blur(16px);
     min-width: 240px;
   }
-  #hud h2 { color: #58a6ff; font-size: 18px; margin-bottom: 8px; }
-  #hud .loc { color: #f778ba; font-size: 15px; font-weight: 600; min-height: 22px; }
-  #hud .time { color: #3fb950; font-size: 13px; font-family: monospace; margin-top: 2px; }
-  #hud .stat { color: #8b949e; font-size: 12px; margin-top: 8px; line-height: 1.5; }
-  #hud .stat span { color: #58a6ff; }
+  #hud h2 { color: #1a6dd4; font-size: 18px; margin-bottom: 8px; }
+  #hud .loc { color: #cc3333; font-size: 15px; font-weight: 600; min-height: 22px; }
+  #hud .time { color: #2a7a2a; font-size: 13px; font-family: monospace; margin-top: 2px; }
+  #hud .stat { color: #555; font-size: 12px; margin-top: 8px; line-height: 1.5; }
+  #hud .stat span { color: #1a6dd4; }
+  #hud { color: #333; }
   #controls {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     display: flex; gap: 10px; z-index: 10;
   }
   #controls button {
-    background: rgba(88, 166, 255, 0.15);
-    color: #58a6ff; border: 1px solid rgba(88, 166, 255, 0.4);
+    background: rgba(255, 255, 255, 0.7);
+    color: #1a6dd4; border: 1px solid rgba(26, 109, 212, 0.3);
     border-radius: 10px; padding: 10px 22px;
     font-size: 14px; font-weight: 600; cursor: pointer;
     backdrop-filter: blur(8px); transition: all 0.2s;
   }
-  #controls button:hover { background: rgba(88, 166, 255, 0.3); }
-  #controls button.active { background: #58a6ff; color: #050510; }
+  #controls button:hover { background: rgba(26, 109, 212, 0.2); }
+  #controls button.active { background: #1a6dd4; color: #fff; }
   #speed {
     position: absolute; bottom: 20px; right: 20px;
     color: #8b949e; font-size: 12px; z-index: 10;
@@ -45,7 +46,7 @@
     height: 3px; background: rgba(88, 166, 255, 0.1); z-index: 10;
   }
   #progressBar {
-    height: 100%; width: 0%; background: linear-gradient(90deg, #3fb950, #58a6ff, #f778ba);
+    height: 100%; width: 0%; background: linear-gradient(90deg, #2a7a2a, #1a6dd4, #cc3333);
     transition: width 0.1s;
   }
 </style>
@@ -125,8 +126,8 @@ const waypoints = [
 
 // --- SCENE SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050510);
-scene.fog = new THREE.FogExp2(0x050510, 0.006);
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.FogExp2(0x87CEEB, 0.004);
 
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 800);
 // Top-down monitoring view
@@ -170,19 +171,19 @@ for (let i = 0; i < tPos.count; i++) {
 terrainGeo.computeVertexNormals();
 
 const terrainMat = new THREE.MeshStandardMaterial({
-  color: 0x0a1628,
+  color: 0x4a8a3a,
   roughness: 0.9,
-  metalness: 0.1,
+  metalness: 0.05,
   flatShading: true
 });
 scene.add(new THREE.Mesh(terrainGeo, terrainMat));
 
 // Grid overlay
 const gridMat = new THREE.MeshStandardMaterial({
-  color: 0x1a2a44,
+  color: 0x3a6a2a,
   wireframe: true,
   transparent: true,
-  opacity: 0.15
+  opacity: 0.1
 });
 scene.add(new THREE.Mesh(terrainGeo.clone(), gridMat));
 
@@ -522,11 +523,13 @@ function updateSparks(dt) {
 }
 
 // --- LIGHTS ---
-scene.add(new THREE.AmbientLight(0x1a1a3a, 2));
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 
-const moonLight = new THREE.DirectionalLight(0x4466aa, 0.8);
-moonLight.position.set(-20, 30, -10);
-scene.add(moonLight);
+const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.5);
+sunLight.position.set(20, 40, 10);
+scene.add(sunLight);
+const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x3a7a3a, 0.8);
+scene.add(hemiLight);
 
 const trainGlow = new THREE.PointLight(0xff6644, 3, 12);
 scene.add(trainGlow);
@@ -537,27 +540,15 @@ destGlow.position.set(dx, 5, dz);
 scene.add(destGlow);
 
 // --- STARS ---
-const starsGeo2 = new THREE.BufferGeometry();
-const sv = [];
-for (let i = 0; i < 4000; i++) {
-  const r = 150 + Math.random() * 100;
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.random() * Math.PI * 0.4;
-  sv.push(
-    r * Math.sin(phi) * Math.cos(theta),
-    30 + r * Math.cos(phi),
-    r * Math.sin(phi) * Math.sin(theta)
-  );
+// Clouds — simple white spheres scattered in the sky
+for (let i = 0; i < 15; i++) {
+  const cGeo = new THREE.SphereGeometry(2 + Math.random() * 3, 8, 8);
+  const cMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, roughness: 1 });
+  const cloud = new THREE.Mesh(cGeo, cMat);
+  cloud.position.set((Math.random() - 0.5) * 120, 20 + Math.random() * 15, (Math.random() - 0.5) * 120);
+  cloud.scale.set(1, 0.4, 1);
+  scene.add(cloud);
 }
-starsGeo2.setAttribute('position', new THREE.Float32BufferAttribute(sv, 3));
-const starsMat2 = new THREE.PointsMaterial({
-  color: 0xccccff,
-  size: 0.15,
-  transparent: true,
-  opacity: 0.7,
-  sizeAttenuation: true
-});
-scene.add(new THREE.Points(starsGeo2, starsMat2));
 
 // --- STATE ---
 let playing = true;
