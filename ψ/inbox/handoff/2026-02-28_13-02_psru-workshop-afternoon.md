@@ -48,7 +48,8 @@
 - [ ] Students deploy GitHub Pages (afternoon session)
 - [ ] Collect student /rrr retrospectives on Issue #229
 - [ ] DustBoy dashboard demo (ψ/lab/dustboy-dashboard.html ready)
-- [ ] `.gitignore` at root (has .agent-locks/ entry, uncommitted)
+- [x] `.gitignore` at root — committed (335e7f9)
+- [x] Issue #60 registry updated — PSRU wave #77-84 added
 - [ ] /rrr full session retrospective for Two Rivers
 
 ## Key Files
