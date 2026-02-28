@@ -213,7 +213,7 @@
   <kbd>Shift</kbd> run &nbsp;
   <kbd>Space</kbd> punch &nbsp;
   <kbd>Q</kbd><kbd>E</kbd> camera &nbsp;
-  <span style="color:#484f58">right-drag orbit</span>
+  <span style="color:#484f58">drag to orbit</span>
 </div>
 
 <!-- Touch Controls (mobile) -->
@@ -1064,7 +1064,7 @@ window.joinGame = async function() {
     // Camera orbit — right-click drag (desktop) + touch drag on canvas (mobile)
     renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
     renderer.domElement.addEventListener('mousedown', e => {
-      if (e.button === 2) { camDragId = 'mouse'; camDragLastX = e.clientX; }
+      camDragId = 'mouse'; camDragLastX = e.clientX;
     });
     window.addEventListener('mousemove', e => {
       if (camDragId === 'mouse') {
@@ -1072,8 +1072,8 @@ window.joinGame = async function() {
         camDragLastX = e.clientX;
       }
     });
-    window.addEventListener('mouseup', e => {
-      if (e.button === 2) camDragId = null;
+    window.addEventListener('mouseup', () => {
+      if (camDragId === 'mouse') camDragId = null;
     });
     renderer.domElement.addEventListener('touchstart', e => {
       if (camDragId !== null) return;
