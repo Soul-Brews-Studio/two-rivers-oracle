@@ -176,7 +176,7 @@
     <div class="sub">MQTT Multiplayer Battle — Oracle vs Oracle</div>
     <input type="text" id="name-input" placeholder="Your Oracle name..." maxlength="20" autocomplete="off">
     <button id="btn-join" onclick="joinGame()">Enter Arena</button>
-    <div class="hint">WASD move · Shift run · Space punch<br>Mobile: joystick + buttons</div>
+    <div class="hint">WASD move · Shift run · Space punch · QE camera<br>Mobile: joystick + buttons · swipe to orbit</div>
   </div>
 </div>
 
@@ -211,7 +211,9 @@
 <div class="controls-hint" id="controls-hint" style="display:none;">
   <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;
   <kbd>Shift</kbd> run &nbsp;
-  <kbd>Space</kbd> punch
+  <kbd>Space</kbd> punch &nbsp;
+  <kbd>Q</kbd><kbd>E</kbd> camera &nbsp;
+  <span style="color:#484f58">right-drag orbit</span>
 </div>
 
 <!-- Touch Controls (mobile) -->
@@ -279,6 +281,8 @@ const clock = new THREE.Clock();
 const keys = {};
 let mqttClient = null;
 let syncInterval = null;
+let cameraAngle = 0;
+let camDragId = null, camDragLastX = 0;
 
 // ===== HELPERS =====
 function genId() {
@@ -618,6 +622,10 @@ function updateLocalPlayer(delta) {
   if (!localPlayer || !localPlayer.alive) return;
   if (localPlayer.punchCooldown) return;
 
+  // Camera rotation with Q/E
+  if (keys['KeyQ']) cameraAngle -= 2.0 * delta;
+  if (keys['KeyE']) cameraAngle += 2.0 * delta;
+
   const fwd = keys['KeyW'] || keys['ArrowUp'];
   const back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'];
@@ -640,14 +648,20 @@ function updateLocalPlayer(delta) {
   if (moving) {
     dx /= len; dz /= len;
 
+    // Rotate input by camera angle so movement is camera-relative
+    const cos = Math.cos(cameraAngle);
+    const sin = Math.sin(cameraAngle);
+    const wx = dx * cos + dz * sin;
+    const wz = -dx * sin + dz * cos;
+
     const speed = running ? RUN_SPEED : WALK_SPEED;
-    localPlayer.x += dx * speed * delta;
-    localPlayer.z += dz * speed * delta;
+    localPlayer.x += wx * speed * delta;
+    localPlayer.z += wz * speed * delta;
     localPlayer.x = THREE.MathUtils.clamp(localPlayer.x, -ARENA_SIZE, ARENA_SIZE);
     localPlayer.z = THREE.MathUtils.clamp(localPlayer.z, -ARENA_SIZE, ARENA_SIZE);
 
-    // Face movement direction
-    const targetRy = Math.atan2(dx, dz);
+    // Face movement direction (world space)
+    const targetRy = Math.atan2(wx, wz);
     localPlayer.ry = lerpAngle(localPlayer.ry, targetRy, 0.2);
 
     const wantAnim = running ? 'Running' : 'Walking';
@@ -705,7 +719,9 @@ function removePlayer(id) {
 // ===== CAMERA =====
 function updateCamera() {
   if (!localPlayer) return;
-  const target = new THREE.Vector3(localPlayer.x, 6, localPlayer.z + 10);
+  const camX = localPlayer.x + Math.sin(cameraAngle) * 10;
+  const camZ = localPlayer.z + Math.cos(cameraAngle) * 10;
+  const target = new THREE.Vector3(camX, 6, camZ);
   camera.position.lerp(target, 0.08);
   camera.lookAt(localPlayer.x, 1, localPlayer.z);
 }
@@ -1044,6 +1060,40 @@ window.joinGame = async function() {
     localPlayer = createPlayer(id, name, PLAYER_COLORS[colorIdx], true);
 
     setupInput();
+
+    // Camera orbit — right-click drag (desktop) + touch drag on canvas (mobile)
+    renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+    renderer.domElement.addEventListener('mousedown', e => {
+      if (e.button === 2) { camDragId = 'mouse'; camDragLastX = e.clientX; }
+    });
+    window.addEventListener('mousemove', e => {
+      if (camDragId === 'mouse') {
+        cameraAngle += (e.clientX - camDragLastX) * 0.005;
+        camDragLastX = e.clientX;
+      }
+    });
+    window.addEventListener('mouseup', e => {
+      if (e.button === 2) camDragId = null;
+    });
+    renderer.domElement.addEventListener('touchstart', e => {
+      if (camDragId !== null) return;
+      const t = e.changedTouches[0];
+      camDragId = t.identifier;
+      camDragLastX = t.clientX;
+    }, { passive: true });
+    renderer.domElement.addEventListener('touchmove', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === camDragId) {
+          cameraAngle += (t.clientX - camDragLastX) * 0.008;
+          camDragLastX = t.clientX;
+        }
+      }
+    }, { passive: true });
+    renderer.domElement.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === camDragId) camDragId = null;
+      }
+    });
 
     // Show UI
     document.getElementById('loading').classList.add('hidden');
