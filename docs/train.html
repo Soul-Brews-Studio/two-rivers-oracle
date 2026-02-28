@@ -65,7 +65,7 @@
 
 <div id="controls">
   <button onclick="togglePlay()" id="playBtn" class="active">⏸ Pause</button>
-  <button onclick="toggleCamera()" id="camBtn" class="active">🎥 On Train</button>
+  <button onclick="toggleCamera()" id="camBtn" class="active">📡 Monitor</button>
   <button onclick="resetView()">↺ Reset</button>
 </div>
 
@@ -129,8 +129,8 @@ scene.background = new THREE.Color(0x050510);
 scene.fog = new THREE.FogExp2(0x050510, 0.006);
 
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 800);
-// Initial position set after train is placed
-camera.position.set(5, 25, 35);
+// Top-down monitoring view
+camera.position.set(0, 40, 0.1);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(innerWidth, innerHeight);
@@ -598,11 +598,12 @@ window.togglePlay = () => {
 
 window.toggleCamera = () => {
   followCam = !followCam;
-  document.getElementById('camBtn').textContent = followCam ? '🎥 On Train' : '🎥 Orbit';
+  document.getElementById('camBtn').textContent = followCam ? '📡 Monitor' : '🎥 Free';
   document.getElementById('camBtn').classList.toggle('active', followCam);
   if (!followCam) {
-    controls.enabled = true;
-    camera.position.set(5, 25, 35);
+    controls.enableRotate = true;
+    controls.enablePan = true;
+    camera.position.set(0, 40, 0.1);
     controls.target.set(0, 0, -5);
   }
 };
@@ -615,7 +616,9 @@ window.resetView = () => {
   document.getElementById('playBtn').classList.remove('active');
   document.getElementById('camBtn').classList.remove('active');
   controls.enabled = true;
-  camera.position.set(5, 25, 35);
+  controls.enableRotate = true;
+  controls.enablePan = true;
+  camera.position.set(0, 40, 0.1);
   controls.target.set(0, 0, -5);
 };
 
@@ -672,22 +675,19 @@ function animate() {
   }
   document.getElementById('progressBar').style.width = (playT * 100) + '%';
 
-  // Follow camera — behind and above the train, cinematic chase view
+  // Monitor camera — fixed position, train moves underneath, scroll to zoom
   if (followCam && locomotive.visible) {
-    controls.enabled = false;
-    const lp = locomotive.position;
-    const tan = curve.getTangentAt(Math.min(playT, 0.999)).normalize();
-    const right = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0)).normalize();
-    const lookAhead = lp.clone().add(tan.clone().multiplyScalar(10));
-    lookAhead.y = lp.y + 0.8;
-    const camPos = lp.clone()
-      .add(new THREE.Vector3(0, 4.5, 0))
-      .sub(tan.clone().multiplyScalar(6))
-      .add(right.clone().multiplyScalar(1.5));
-    camera.position.lerp(camPos, 0.04);
-    camera.lookAt(lookAhead);
+    controls.enabled = true;
+    controls.enableRotate = false;
+    controls.enablePan = false;
+    controls.enableZoom = true;
+    controls.target.copy(locomotive.position);
+    controls.update();
   } else {
     controls.enabled = true;
+    controls.enableRotate = true;
+    controls.enablePan = true;
+    controls.enableZoom = true;
     controls.update();
   }
 
