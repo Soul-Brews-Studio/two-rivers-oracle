@@ -64,8 +64,8 @@
 </div>
 
 <div id="controls">
-  <button onclick="togglePlay()" id="playBtn">▶ Depart</button>
-  <button onclick="toggleCamera()" id="camBtn">🎥 Follow</button>
+  <button onclick="togglePlay()" id="playBtn" class="active">⏸ Pause</button>
+  <button onclick="toggleCamera()" id="camBtn" class="active">🎥 On Train</button>
   <button onclick="resetView()">↺ Reset</button>
 </div>
 
@@ -129,6 +129,7 @@ scene.background = new THREE.Color(0x050510);
 scene.fog = new THREE.FogExp2(0x050510, 0.006);
 
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 800);
+// Initial position set after train is placed
 camera.position.set(5, 25, 35);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -559,8 +560,8 @@ const starsMat2 = new THREE.PointsMaterial({
 scene.add(new THREE.Points(starsGeo2, starsMat2));
 
 // --- STATE ---
-let playing = false;
-let followCam = false;
+let playing = true;
+let followCam = true;
 let playT = 0;
 let playSpeed = 0.04;
 const clock = new THREE.Clock();
@@ -597,6 +598,7 @@ window.togglePlay = () => {
 
 window.toggleCamera = () => {
   followCam = !followCam;
+  document.getElementById('camBtn').textContent = followCam ? '🎥 On Train' : '🎥 Orbit';
   document.getElementById('camBtn').classList.toggle('active', followCam);
   if (!followCam) {
     controls.enabled = true;
@@ -670,17 +672,18 @@ function animate() {
   }
   document.getElementById('progressBar').style.width = (playT * 100) + '%';
 
-  // Follow camera
+  // Follow camera — on top of the train, looking forward
   if (followCam && locomotive.visible) {
     controls.enabled = false;
     const lp = locomotive.position;
     const tan = curve.getTangentAt(Math.min(playT, 0.999)).normalize();
-    const camTarget = lp.clone().add(new THREE.Vector3(0, 1, 0));
+    const lookAhead = lp.clone().add(tan.clone().multiplyScalar(8));
+    lookAhead.y = lp.y + 0.5;
     const camPos = lp.clone()
-      .sub(tan.clone().multiplyScalar(5))
-      .add(new THREE.Vector3(0, 3, 0));
-    camera.position.lerp(camPos, 0.05);
-    camera.lookAt(camTarget);
+      .add(new THREE.Vector3(0, 2.2, 0))
+      .sub(tan.clone().multiplyScalar(0.5));
+    camera.position.lerp(camPos, 0.08);
+    camera.lookAt(lookAhead);
   } else {
     controls.enabled = true;
     controls.update();
