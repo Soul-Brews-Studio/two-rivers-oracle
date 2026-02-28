@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSRU Workshop — สองแคว Two Rivers Oracle</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans Thai', -apple-system, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100vh;
+  }
+  .container { max-width: 700px; margin: 0 auto; padding: 3rem 1.5rem; }
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.3rem;
+  }
+  .sub { color: #8b949e; font-size: 1.1rem; margin-bottom: 2.5rem; }
+  .cards { display: flex; flex-direction: column; gap: 1rem; }
+  a.card {
+    display: flex; align-items: center; gap: 1.2rem;
+    background: rgba(22, 27, 34, 0.8);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    text-decoration: none;
+    color: #e6edf3;
+    transition: all 0.2s;
+  }
+  a.card:hover {
+    border-color: #58a6ff;
+    transform: translateX(4px);
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.1);
+  }
+  .icon { font-size: 2rem; flex-shrink: 0; }
+  .card-text h3 { font-size: 1.1rem; font-weight: 600; }
+  .card-text p { color: #8b949e; font-size: 0.85rem; margin-top: 2px; }
+  .tag {
+    font-size: 0.7rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 10px;
+    margin-left: auto; flex-shrink: 0;
+  }
+  .tag.live { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+  .tag.data { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+  .section-label {
+    color: #8b949e; font-size: 0.8rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin: 2rem 0 0.8rem; padding-left: 0.5rem;
+  }
+  footer {
+    text-align: center; margin-top: 3rem; padding-top: 1.5rem;
+    border-top: 1px solid #21262d; color: #484f58; font-size: 0.8rem;
+  }
+  footer span { color: #58a6ff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏞️ PSRU Workshop</h1>
+  <p class="sub">AI-Native Engineering — 28 ก.พ. 2569<br>มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก</p>
+
+  <div class="section-label">Workshop Materials</div>
+  <div class="cards">
+    <a class="card" href="guide.html">
+      <span class="icon">📋</span>
+      <div class="card-text">
+        <h3>GitHub Pages Guide</h3>
+        <p>4 ขั้นตอน — สร้างเว็บ portfolio ของตัวเอง</p>
+      </div>
+      <span class="tag live">GUIDE</span>
+    </a>
+    <a class="card" href="train.html">
+      <span class="icon">🚂</span>
+      <div class="card-text">
+        <h3>3D Night Train</h3>
+        <p>Three.js — เชียงใหม่ → พิษณุโลก + smoke, sparks, follow camera</p>
+      </div>
+      <span class="tag live">3D</span>
+    </a>
+    <a class="card" href="map.html">
+      <span class="icon">🗺️</span>
+      <div class="card-text">
+        <h3>Travel Map</h3>
+        <p>Leaflet.js — 34 waypoints + interactive timeline</p>
+      </div>
+      <span class="tag live">2D</span>
+    </a>
+  </div>
+
+  <div class="section-label">Data</div>
+  <div class="cards">
+    <a class="card" href="data.csv">
+      <span class="icon">📊</span>
+      <div class="card-text">
+        <h3>GPS Data (CSV)</h3>
+        <p>328 จุด — lat, lon, locality, address, updated</p>
+      </div>
+      <span class="tag data">CSV</span>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/229">
+      <span class="icon">🌊</span>
+      <div class="card-text">
+        <h3>PSRU Wave — Issue #229</h3>
+        <p>Gathering place + prompts + retrospectives</p>
+      </div>
+      <span class="tag data">GITHUB</span>
+    </a>
+  </div>
+
+  <div class="section-label">Student Oracles</div>
+  <div class="cards">
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217">
+      <span class="icon">🌀</span>
+      <div class="card-text"><h3>OS-1 (THE OMNISCIENT)</h3><p>JONAT — The Universal Problem-Solver</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219">
+      <span class="icon">🤖</span>
+      <div class="card-text"><h3>BOB</h3><p>ท่าน — AI for Connection</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220">
+      <span class="icon">✨</span>
+      <div class="card-text"><h3>Sukrit</h3><p>admin00 — วิเคราะห์เชิงลึกด้านสังคม</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221">
+      <span class="icon">📁</span>
+      <div class="card-text"><h3>Portfolio Builder</h3><p>Nat — ผู้สร้างความเรียบง่าย</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223">
+      <span class="icon">🅱️</span>
+      <div class="card-text"><h3>B1</h3><p>ลูกพี่ — ห้องสมุดแห่งความรอบคอบ</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224">
+      <span class="icon">🌈</span>
+      <div class="card-text"><h3>AI Spektrum</h3><p>Peg — The Pragmatic Oracle of Efficiency</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/226">
+      <span class="icon">💡</span>
+      <div class="card-text"><h3>Lumina</h3><p>อ.กนกพร — Academic and Development Assistant</p></div>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237">
+      <span class="icon">📚</span>
+      <div class="card-text"><h3>Nano</h3><p>ลิตเติ้ล — The Adaptive Library</p></div>
+    </a>
+  </div>
+
+  <footer>
+    <p><span>Two Rivers (สองแคว)</span> — Teaching Oracle</p>
+    <p style="margin-top:4px;">Born 2026-02-28 · Pibulsongkram Rajabhat University, Phitsanulok</p>
+  </footer>
+</div>
+</body>
+</html>
