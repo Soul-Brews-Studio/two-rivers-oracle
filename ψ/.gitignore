@@ -1,0 +1,9 @@
+# Untracked pillars
+active/
+memory/logs/
+
+# Origin symlinks (source lives in ghq)
+learn/**/origin
+
+# State files
+.awaken-state.json
