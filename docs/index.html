@@ -671,6 +671,7 @@
     <a href="#philosophy">Philosophy</a>
     <a href="#family">Family</a>
     <a href="#journey">Journey</a>
+    <a href="report.html" id="nav-report" style="display:none;color:var(--primary)">📊 Report</a>
   </div>
 </nav>
 
@@ -713,7 +714,7 @@
         <div class="stat-item"><div class="num" style="font-size:1.5rem">14</div><div class="label">Senior Projects</div></div>
         <div class="stat-item"><div class="num" style="font-size:1.5rem">182</div><div class="label">Total</div></div>
       </div>
-      <div style="text-align:center;margin-top:0.8rem">
+      <div id="ws-buttons" style="text-align:center;margin-top:0.8rem">
         <a href="report.html" class="btn btn-primary" style="font-size:0.8rem;padding:8px 20px">📊 Report</a>
         <a href="https://www.facebook.com/groups/887734280258481" class="btn btn-ghost" style="font-size:0.75rem;padding:6px 16px;margin-left:6px" target="_blank">📘 Facebook</a>
       </div>
@@ -1281,6 +1282,14 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   }, { threshold: 0.3 });
   sections.forEach(s => { if (s) spy.observe(s); });
 
+  // Show Report in navbar when buttons scroll out
+  var wsBtn = document.getElementById('ws-buttons');
+  var navReport = document.getElementById('nav-report');
+  if (wsBtn && navReport) {
+    new IntersectionObserver(function(entries) {
+      navReport.style.display = entries[0].isIntersecting ? 'none' : '';
+    }).observe(wsBtn);
+  }
 })();
 </script>
 </body>
