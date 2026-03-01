@@ -601,22 +601,12 @@
     position: fixed;
     right: 20px;
     top: 50%;
-    left: auto;
-    bottom: auto;
     transform: translateY(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 14px;
     z-index: 40;
-    background: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: none;
-    border-radius: 0;
-    padding: 0;
-    max-width: none;
-    margin: 0;
   }
   .dot-nav .dot {
     display: block;
@@ -1249,13 +1239,13 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
 
 <!-- ── Dot Nav ── -->
-<nav class="dot-nav" aria-label="Section navigation">
+<div class="dot-nav" aria-label="Section navigation">
   <a href="#" class="dot active" title="Home" data-section="hero"></a>
   <a href="#workshop" class="dot" title="Workshop" data-section="workshop"></a>
   <a href="#philosophy" class="dot" title="Philosophy" data-section="philosophy"></a>
   <a href="#family" class="dot" title="Family" data-section="family"></a>
   <a href="#origin" class="dot" title="Origin" data-section="origin"></a>
-</nav>
+</div>
 <script>
 (function() {
   const dots = document.querySelectorAll('.dot-nav .dot');
