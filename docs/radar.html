@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arena Radar — MQTT Observer</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e14;
+    color: #e6edf3;
+    font-family: 'Noto Sans Thai', -apple-system, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto 1fr;
+  }
+  @media (max-width: 700px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .sidebar { max-height: 35vh; border-left: none; border-top: 1px solid #1b2230; }
+  }
+
+  /* ── Header ── */
+  .header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(13,17,23,0.9);
+    border-bottom: 1px solid #1b2230;
+    backdrop-filter: blur(8px);
+  }
+  .header h1 {
+    font-size: 1rem;
+    background: linear-gradient(135deg, #00ff88, #00bbff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.75rem; color: #8b949e;
+  }
+  .header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .dot.on { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+  .dot.off { background: #f87171; }
+  .dot.wait { background: #f0883e; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  /* ── Radar Canvas ── */
+  .radar-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #0a0e14;
+  }
+  canvas#radar {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: #0d1117;
+    border-left: 1px solid #1b2230;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid #1b2230;
+  }
+  .tab-bar button {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 8px;
+    color: #8b949e;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-family: inherit;
+  }
+  .tab-bar button.active {
+    color: #00ff88;
+    border-bottom-color: #00ff88;
+  }
+  .tab-content { flex: 1; overflow-y: auto; padding: 8px; }
+  .tab-content.hidden { display: none; }
+
+  /* ── Players tab ── */
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    background: rgba(22,27,34,0.5);
+    transition: background 0.2s;
+  }
+  .player-row:hover { background: rgba(22,27,34,0.9); }
+  .player-color {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 4px currentColor;
+  }
+  .player-info { flex: 1; }
+  .player-name { font-weight: 600; }
+  .player-pos { color: #6e7681; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; }
+  .player-hp { width: 40px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+  .player-hp.low { color: #f87171; }
+  .player-hp.mid { color: #fbbf24; }
+  .player-hp.high { color: #00ff88; }
+
+  /* ── Feed tab ── */
+  .feed-entry {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid rgba(27,34,48,0.5);
+    line-height: 1.4;
+  }
+  .feed-time { color: #484f58; }
+  .feed-topic { color: #00bbff; }
+  .feed-join { color: #00ff88; }
+  .feed-leave { color: #f87171; }
+  .feed-action { color: #fbbf24; }
+  .feed-state { color: #6e7681; }
+
+  /* ── Stats tab ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px;
+  }
+  .stat-card {
+    background: rgba(22,27,34,0.6);
+    border: 1px solid #1b2230;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-card .num {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(135deg, #00ff88, #00bbff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat-card .label { font-size: 0.65rem; color: #8b949e; margin-top: 2px; }
+
+  .teach-box {
+    margin-top: 12px;
+    background: rgba(0,255,136,0.05);
+    border: 1px solid rgba(0,255,136,0.15);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .teach-box h4 { color: #00ff88; font-size: 0.8rem; margin-bottom: 4px; }
+  .teach-box code {
+    background: rgba(0,0,0,0.3);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: #00bbff;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <h1>📡 Arena Radar — MQTT Observer</h1>
+  <div class="status">
+    <div class="dot wait" id="dot-mqtt"></div>
+    <span id="status-text">connecting...</span>
+    <span id="msg-count" style="margin-left:8px; color:#484f58">0 msgs</span>
+  </div>
+</div>
+
+<!-- ── Radar ── -->
+<div class="radar-wrap">
+  <canvas id="radar" width="600" height="600"></canvas>
+</div>
+
+<!-- ── Sidebar ── -->
+<div class="sidebar">
+  <div class="tab-bar">
+    <button class="active" data-tab="players">Players</button>
+    <button data-tab="feed">Feed</button>
+    <button data-tab="stats">Stats</button>
+  </div>
+  <div class="tab-content" id="tab-players"></div>
+  <div class="tab-content hidden" id="tab-feed"></div>
+  <div class="tab-content hidden" id="tab-stats">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num" id="s-players">0</div><div class="label">Players</div></div>
+      <div class="stat-card"><div class="num" id="s-msgs">0</div><div class="label">Messages</div></div>
+      <div class="stat-card"><div class="num" id="s-punches">0</div><div class="label">Punches</div></div>
+      <div class="stat-card"><div class="num" id="s-kills">0</div><div class="label">Kills</div></div>
+    </div>
+    <div class="teach-box">
+      <h4>MQTT คืออะไร?</h4>
+      <p>MQTT เป็น protocol สำหรับส่งข้อมูลแบบ <strong>publish/subscribe</strong> — เหมือนวิทยุ</p>
+      <p style="margin-top:6px">Arena <strong>publish</strong> ตำแหน่งผู้เล่นไปที่ <code>arena/state/{id}</code></p>
+      <p>Radar นี้ <strong>subscribe</strong> ดูข้อมูลเดียวกัน — คนละแอปแต่เห็นข้อมูลเดียวกัน!</p>
+      <p style="margin-top:6px; color:#8b949e">Broker: <code>dustboy-wss-bridge</code><br>Topics: <code>arena/#</code></p>
+      <h4 style="margin-top:10px">What is MQTT?</h4>
+      <p style="color:#8b949e">A publish/subscribe messaging protocol. Arena publishes player positions. This Radar subscribes to the same data. Two different apps, one data stream!</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const MQTT_BROKER = 'wss://dustboy-wss-bridge.laris.workers.dev/mqtt';
+const ARENA_SIZE = 20; // Arena ground is -10 to +10 in world units
+const TRAIL_LENGTH = 40;
+
+// ===== STATE =====
+const players = {};
+let totalMsgs = 0;
+let totalPunches = 0;
+let totalKills = 0;
+const feedLog = [];
+
+// ===== CANVAS =====
+const canvas = document.getElementById('radar');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const size = Math.min(wrap.clientWidth, wrap.clientHeight) - 20;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ===== TABS =====
+document.querySelectorAll('.tab-bar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+// ===== COORDINATE MAPPING =====
+// Arena world: x,z from ~-10 to +10 → canvas 0-600
+function worldToCanvas(wx, wz) {
+  const cx = ((wx + ARENA_SIZE/2) / ARENA_SIZE) * 600;
+  const cy = ((-wz + ARENA_SIZE/2) / ARENA_SIZE) * 600; // z is inverted in 3D
+  return [cx, cy];
+}
+
+// ===== DRAW RADAR =====
+function drawRadar() {
+  ctx.clearRect(0, 0, 600, 600);
+
+  // Background
+  ctx.fillStyle = '#0a0e14';
+  ctx.fillRect(0, 0, 600, 600);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(27, 34, 48, 0.8)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const pos = (i / 10) * 600;
+    ctx.beginPath(); ctx.moveTo(pos, 0); ctx.lineTo(pos, 600); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, pos); ctx.lineTo(600, pos); ctx.stroke();
+  }
+
+  // Center crosshair
+  ctx.strokeStyle = 'rgba(0, 255, 136, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(300, 0); ctx.lineTo(300, 600); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(600, 300); ctx.stroke();
+
+  // Radar circles
+  ctx.strokeStyle = 'rgba(0, 187, 255, 0.08)';
+  for (const r of [100, 200, 300]) {
+    ctx.beginPath(); ctx.arc(300, 300, r, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // Radar sweep
+  const sweep = (Date.now() / 3000) * Math.PI * 2;
+  const grad = ctx.createConicalGradient ? null : null; // fallback
+  ctx.save();
+  ctx.translate(300, 300);
+  ctx.rotate(sweep);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, 300, -0.15, 0.15);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0, 255, 136, 0.04)';
+  ctx.fill();
+  ctx.restore();
+
+  // Players
+  const now = Date.now();
+  const ids = Object.keys(players);
+
+  for (const id of ids) {
+    const p = players[id];
+    // Remove stale players (>10s)
+    if (now - p.lastSeen > 10000) {
+      delete players[id];
+      continue;
+    }
+
+    const colorStr = '#' + (p.color || 0x8b949e).toString(16).padStart(6, '0');
+    const alpha = p.alive ? 1.0 : 0.3;
+
+    // Trail
+    if (p.trail.length > 1) {
+      ctx.beginPath();
+      for (let i = 0; i < p.trail.length; i++) {
+        const [tx, ty] = worldToCanvas(p.trail[i][0], p.trail[i][1]);
+        const a = (i / p.trail.length) * 0.5 * alpha;
+        ctx.strokeStyle = colorStr + Math.round(a * 255).toString(16).padStart(2, '0');
+        ctx.lineWidth = 2;
+        if (i === 0) ctx.moveTo(tx, ty);
+        else ctx.lineTo(tx, ty);
+      }
+      ctx.stroke();
+    }
+
+    // Position dot
+    const [px, py] = worldToCanvas(p.x, p.z);
+
+    // Glow
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, 20);
+    glow.addColorStop(0, colorStr + '40');
+    glow.addColorStop(1, colorStr + '00');
+    ctx.fillStyle = glow;
+    ctx.fillRect(px - 20, py - 20, 40, 40);
+
+    // Dot
+    ctx.fillStyle = colorStr;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(px, py, p.alive ? 6 : 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Direction arrow
+    if (p.ry !== undefined) {
+      const dx = Math.sin(p.ry) * 14;
+      const dy = -Math.cos(p.ry) * 14;
+      ctx.strokeStyle = colorStr;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + dx, py + dy);
+      ctx.stroke();
+      // Arrowhead
+      const ax = px + dx, ay = py + dy;
+      const angle = Math.atan2(dy, dx);
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - 5*Math.cos(angle-0.5), ay - 5*Math.sin(angle-0.5));
+      ctx.lineTo(ax - 5*Math.cos(angle+0.5), ay - 5*Math.sin(angle+0.5));
+      ctx.closePath();
+      ctx.fillStyle = colorStr;
+      ctx.fill();
+    }
+
+    // Punch flash
+    if (p.punchFlash && now - p.punchFlash < 400) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 1 - (now - p.punchFlash) / 400;
+      ctx.beginPath();
+      ctx.arc(px, py, 16 + (now - p.punchFlash) / 30, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Death X
+    if (!p.alive) {
+      ctx.strokeStyle = '#f87171';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath(); ctx.moveTo(px-8, py-8); ctx.lineTo(px+8, py+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px+8, py-8); ctx.lineTo(px-8, py+8); ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Name label
+    ctx.font = '600 10px "JetBrains Mono"';
+    ctx.fillStyle = colorStr;
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name || id.slice(0, 6), px, py - 12);
+
+    // HP bar under name
+    if (p.alive && p.hp !== undefined) {
+      const barW = 30, barH = 3;
+      ctx.fillStyle = '#21262d';
+      ctx.fillRect(px - barW/2, py + 10, barW, barH);
+      const hpPct = Math.max(0, p.hp / 100);
+      ctx.fillStyle = hpPct > 0.5 ? '#00ff88' : hpPct > 0.25 ? '#fbbf24' : '#f87171';
+      ctx.fillRect(px - barW/2, py + 10, barW * hpPct, barH);
+    }
+  }
+
+  // Player count on radar
+  ctx.font = '600 11px "JetBrains Mono"';
+  ctx.fillStyle = '#484f58';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${ids.length} online`, 10, 20);
+
+  requestAnimationFrame(drawRadar);
+}
+drawRadar();
+
+// ===== SIDEBAR UPDATES =====
+function updatePlayers() {
+  const el = document.getElementById('tab-players');
+  const ids = Object.keys(players).sort((a, b) => (players[b].hp || 0) - (players[a].hp || 0));
+  if (ids.length === 0) {
+    el.innerHTML = '<p style="color:#484f58;font-size:0.75rem;text-align:center;padding:2rem">ยังไม่มีคนเล่น Arena<br><span style="font-size:0.65rem">No players in Arena yet</span></p>';
+    return;
+  }
+  el.innerHTML = ids.map(id => {
+    const p = players[id];
+    const colorStr = '#' + (p.color || 0x8b949e).toString(16).padStart(6, '0');
+    const hpClass = p.hp > 60 ? 'high' : p.hp > 30 ? 'mid' : 'low';
+    const status = p.alive ? '' : ' <span style="color:#f87171">DEAD</span>';
+    return `<div class="player-row">
+      <div class="player-color" style="color:${colorStr};background:${colorStr}"></div>
+      <div class="player-info">
+        <div class="player-name">${p.name || id.slice(0,6)}${status}</div>
+        <div class="player-pos">x:${p.x?.toFixed(1)} z:${p.z?.toFixed(1)} ${p.anim || 'idle'}</div>
+      </div>
+      <div class="player-hp ${hpClass}">${p.hp ?? '?'}</div>
+    </div>`;
+  }).join('');
+
+  // Stats
+  document.getElementById('s-players').textContent = ids.length;
+  document.getElementById('s-msgs').textContent = totalMsgs;
+  document.getElementById('s-punches').textContent = totalPunches;
+  document.getElementById('s-kills').textContent = totalKills;
+}
+
+function addFeed(type, text) {
+  const time = new Date().toLocaleTimeString('th-TH', { hour12: false });
+  const cls = type === 'join' ? 'feed-join' : type === 'leave' ? 'feed-leave' : type === 'action' ? 'feed-action' : 'feed-state';
+  feedLog.unshift({ time, cls, text });
+  if (feedLog.length > 100) feedLog.length = 100;
+
+  const el = document.getElementById('tab-feed');
+  // Only show last 50
+  el.innerHTML = feedLog.slice(0, 50).map(f =>
+    `<div class="feed-entry"><span class="feed-time">${f.time}</span> <span class="${f.cls}">${f.text}</span></div>`
+  ).join('');
+}
+
+// ===== MQTT =====
+const client = mqtt.connect(MQTT_BROKER);
+
+client.on('connect', () => {
+  document.getElementById('dot-mqtt').className = 'dot on';
+  document.getElementById('status-text').textContent = 'connected';
+  client.subscribe('arena/#');
+  addFeed('join', 'Radar connected — subscribing to arena/#');
+});
+
+client.on('offline', () => {
+  document.getElementById('dot-mqtt').className = 'dot off';
+  document.getElementById('status-text').textContent = 'offline';
+});
+
+client.on('message', (topic, message) => {
+  let data;
+  try { data = JSON.parse(message.toString()); } catch { return; }
+
+  totalMsgs++;
+  document.getElementById('msg-count').textContent = totalMsgs + ' msgs';
+
+  const parts = topic.split('/');
+  if (parts[0] !== 'arena') return;
+  const type = parts[1];
+  const senderId = parts[2];
+
+  if (type === 'state' && senderId) {
+    if (!players[senderId]) {
+      players[senderId] = { trail: [], lastSeen: 0 };
+      addFeed('join', `${data.name || senderId.slice(0,6)} appeared`);
+    }
+    const p = players[senderId];
+    p.x = data.x ?? p.x ?? 0;
+    p.z = data.z ?? p.z ?? 0;
+    p.ry = data.ry;
+    p.anim = data.anim;
+    p.hp = data.hp;
+    p.name = data.name || senderId.slice(0, 6);
+    p.color = data.color;
+    p.alive = data.alive !== false;
+    p.lastSeen = Date.now();
+
+    // Trail — only add if moved
+    const last = p.trail.length > 0 ? p.trail[p.trail.length - 1] : null;
+    if (!last || Math.abs(last[0] - p.x) > 0.05 || Math.abs(last[1] - p.z) > 0.05) {
+      p.trail.push([p.x, p.z]);
+      if (p.trail.length > TRAIL_LENGTH) p.trail.shift();
+    }
+  }
+
+  if (type === 'join') {
+    addFeed('join', `${data.name || 'Unknown'} joined arena`);
+  }
+
+  if (type === 'leave') {
+    addFeed('leave', `${senderId?.slice(0,8)} left arena`);
+    if (senderId) delete players[senderId];
+  }
+
+  if (type === 'action' && senderId && data.type) {
+    if (data.type === 'punch') {
+      totalPunches++;
+      if (players[senderId]) players[senderId].punchFlash = Date.now();
+      addFeed('action', `${players[senderId]?.name || senderId.slice(0,6)} PUNCH!`);
+    }
+    if (data.type === 'hit') {
+      const target = players[data.targetId];
+      addFeed('action', `${players[senderId]?.name || '?'} hit ${target?.name || '?'} (-${data.damage})`);
+    }
+    if (data.type === 'death') {
+      totalKills++;
+      addFeed('action', `${players[senderId]?.name || senderId.slice(0,6)} DIED`);
+    }
+    if (data.type === 'respawn') {
+      addFeed('action', `${players[senderId]?.name || senderId.slice(0,6)} respawned`);
+    }
+  }
+});
+
+// Update sidebar every 500ms
+setInterval(updatePlayers, 500);
+</script>
+</body>
+</html>
