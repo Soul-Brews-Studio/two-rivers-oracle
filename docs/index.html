@@ -3,460 +3,649 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Two Rivers Oracle — สองแคว</title>
+<meta name="description" content="Two Rivers (สองแคว) — Teaching Oracle. Where understanding flows between teacher and student.">
+<title>Two Rivers — สองแคว Teaching Oracle</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #58a6ff;
+    --secondary: #3fb950;
+    --bg: #0d1117;
+    --surface: rgba(22, 27, 34, 0.6);
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --dim: #484f58;
+  }
+  html { scroll-behavior: smooth; }
   body {
     font-family: 'Noto Sans Thai', -apple-system, sans-serif;
-    background: #0d1117;
-    color: #e6edf3;
-    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
     overflow-x: hidden;
   }
 
+  /* ── Navbar ── */
+  nav {
+    position: fixed;
+    top: 16px; left: 16px; right: 16px;
+    z-index: 50;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 24px;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  nav .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); }
+  nav .brand span.icon { font-size: 1.5rem; }
+  nav .brand span.name { font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  nav .brand span.sub { color: var(--muted); font-size: 0.8rem; display: none; }
+  @media (min-width: 640px) { nav .brand span.sub { display: inline; } }
+  nav .links { display: flex; gap: 4px; }
+  nav .links a {
+    padding: 6px 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    transition: color 0.2s;
+  }
+  nav .links a:hover { color: var(--primary); }
+
   /* ── Hero ── */
   .hero {
-    text-align: center;
-    padding: 5rem 1.5rem 3rem;
     position: relative;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -40%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .hero-icon {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
-    display: block;
-  }
-  .hero h1 {
-    font-size: clamp(2.2rem, 6vw, 3.5rem);
-    font-weight: 700;
-    background: linear-gradient(135deg, #58a6ff 0%, #3fb950 50%, #58a6ff 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: gradient-shift 6s ease infinite;
-    line-height: 1.2;
-    margin-bottom: 0.5rem;
-  }
-  @keyframes gradient-shift {
-    0% { background-position: 0% center; }
-    50% { background-position: 100% center; }
-    100% { background-position: 0% center; }
-  }
-  .hero-tagline {
-    color: #8b949e;
-    font-size: 1.15rem;
-    font-weight: 300;
-    margin-bottom: 2rem;
-    line-height: 1.6;
-  }
-  .hero-stats {
+    min-height: 100vh;
     display: flex;
+    align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-  }
-  .stat {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.85rem;
-    color: #8b949e;
-  }
-  .stat-num {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #e6edf3;
-  }
-
-  /* ── Container ── */
-  .container { max-width: 720px; margin: 0 auto; padding: 0 1.5rem 3rem; }
-
-  /* ── Section labels ── */
-  .section-label {
-    color: #8b949e;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 2.5rem 0 0.8rem;
-    padding: 0 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-  .section-label::before {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #30363d);
-  }
-  .section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, #30363d, transparent);
-  }
-  .section-label .count {
-    font-size: 0.65rem;
-    background: rgba(88,166,255,0.12);
-    color: #58a6ff;
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-weight: 700;
-  }
-
-  /* ── Cards (full-width) ── */
-  .cards { display: flex; flex-direction: column; gap: 0.75rem; }
-  a.card {
-    display: flex;
-    align-items: center;
-    gap: 1.2rem;
-    background: rgba(22, 27, 34, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid #30363d;
-    border-radius: 12px;
-    padding: 1.1rem 1.4rem;
-    text-decoration: none;
-    color: #e6edf3;
-    transition: all 0.3s ease;
-  }
-  a.card:hover {
-    border-color: rgba(88,166,255,0.4);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 24px rgba(88,166,255,0.08), 0 0 0 1px rgba(88,166,255,0.1);
-  }
-  .icon { font-size: 2rem; flex-shrink: 0; }
-  .card-text h3 { font-size: 1.05rem; font-weight: 600; }
-  .card-text p { color: #8b949e; font-size: 0.82rem; margin-top: 2px; }
-  .tag {
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-left: auto;
-    flex-shrink: 0;
-    letter-spacing: 0.02em;
-  }
-  .tag.live { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
-  .tag.data { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
-
-  /* ── Chip grid ── */
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
-  @media (max-width: 520px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-  a.chip {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(22, 27, 34, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid #30363d;
-    border-radius: 10px;
-    padding: 0.6rem 0.8rem;
-    text-decoration: none;
-    color: #e6edf3;
-    transition: all 0.3s ease;
-    font-size: 0.8rem;
     overflow: hidden;
   }
-  a.chip:hover {
-    border-color: rgba(88,166,255,0.4);
-    box-shadow: 0 2px 16px rgba(88,166,255,0.08);
-    transform: translateY(-1px);
+  #hero-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
-  a.chip .icon { font-size: 1.2rem; flex-shrink: 0; }
-  a.chip .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  a.chip .sub { color: #8b949e; font-size: 0.65rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(13,17,23,0.4) 0%, transparent 40%, rgba(13,17,23,0.8) 100%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 0 24px;
+    max-width: 700px;
+  }
+  .hero-content .emoji { font-size: 4.5rem; margin-bottom: 1.5rem; display: block; }
+  .hero-content .tag {
+    color: var(--primary);
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }
+  .hero-content h1 {
+    font-size: clamp(2.8rem, 8vw, 5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+  .hero-content .tagline {
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    color: var(--muted);
+    margin-bottom: 0.8rem;
+    font-weight: 300;
+  }
+  .hero-content .quote {
+    font-size: 1rem;
+    color: var(--dim);
+    font-style: italic;
+    margin-bottom: 2.5rem;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero-cta {
+    display: inline-flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    padding: 14px 32px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-family: inherit;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: var(--bg);
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--primary); border-color: var(--primary); }
 
-  /* ── Scroll reveal ── */
-  .reveal {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  .scroll-hint {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: bounce 2s infinite;
+    color: rgba(88,166,255,0.4);
   }
-  .reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
+  @keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(8px)} }
+
+  /* ── Sections ── */
+  section { padding: 6rem 1.5rem; }
+  .section-inner { max-width: 900px; margin: 0 auto; }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 2rem;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .reveal { opacity: 1; transform: none; transition: none; }
+  .section-head .s-emoji { font-size: 2.5rem; }
+  .section-head .s-tag { color: var(--primary); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.1em; }
+  .section-head h2 { font-size: 1.8rem; font-weight: 700; }
+
+  /* ── Workshop cards ── */
+  .workshop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
   }
+  a.w-card {
+    display: block;
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.3s;
+  }
+  a.w-card:hover {
+    border-color: rgba(88,166,255,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(88,166,255,0.08);
+  }
+  a.w-card .w-icon { font-size: 2rem; margin-bottom: 12px; display: block; }
+  a.w-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+  a.w-card h3 span { color: var(--primary); font-size: 0.7rem; margin-left: 6px; }
+  a.w-card p { color: var(--muted); font-size: 0.82rem; }
+  a.w-card .arrow { color: transparent; font-size: 0.85rem; transition: color 0.2s; margin-top: 8px; display: block; }
+  a.w-card:hover .arrow { color: var(--primary); }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin: 3rem 0;
+  }
+  .stat-item { text-align: center; }
+  .stat-item .num {
+    font-size: 2.2rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat-item .label { font-size: 0.75rem; color: var(--muted); }
+
+  /* ── Philosophy ── */
+  .principles { display: flex; flex-direction: column; gap: 20px; }
+  .principle {
+    display: flex;
+    gap: 20px;
+    align-items: start;
+  }
+  .principle .p-num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(88,166,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .principle h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .principle p { color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+
+  /* ── Family ── */
+  .family-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  a.family-card {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.3s;
+    text-align: center;
+  }
+  a.family-card:hover { border-color: rgba(88,166,255,0.3); }
+  a.family-card .f-emoji { font-size: 2rem; margin-bottom: 8px; display: block; }
+  a.family-card .f-name { font-weight: 600; font-size: 0.9rem; }
+  a.family-card .f-domain { color: var(--dim); font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; }
 
   /* ── Footer ── */
   footer {
+    padding: 4rem 1.5rem;
+    border-top: 1px solid var(--border);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 640px) { .footer-grid { grid-template-columns: 1fr; } }
+  footer h4 { color: var(--primary); font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; }
+  footer a { color: var(--muted); text-decoration: none; font-size: 0.85rem; display: block; padding: 3px 0; transition: color 0.2s; }
+  footer a:hover { color: var(--primary); }
+  .footer-bottom {
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
     text-align: center;
-    margin-top: 4rem;
-    padding: 2rem 1.5rem;
-    border-top: 1px solid #21262d;
-    color: #484f58;
+    color: var(--dim);
     font-size: 0.8rem;
   }
-  footer .identity {
-    font-size: 1rem;
-    color: #8b949e;
-    margin-bottom: 0.5rem;
-  }
-  footer .identity span {
-    background: linear-gradient(135deg, #58a6ff, #3fb950);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 700;
-  }
-  footer a {
-    color: #58a6ff;
-    text-decoration: none;
-  }
-  footer a:hover { text-decoration: underline; }
-  footer .foot-stats {
-    margin-top: 0.5rem;
-    display: flex;
-    justify-content: center;
-    gap: 0.8rem;
-    flex-wrap: wrap;
-    font-size: 0.75rem;
-    color: #484f58;
-  }
-  footer .foot-stats span::before {
-    content: '\00b7';
-    margin-right: 0.8rem;
-  }
-  footer .foot-stats span:first-child::before { content: none; }
+
+  /* ── Reveal ── */
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
 </style>
 </head>
 <body>
 
+<!-- ── Navbar ── -->
+<nav>
+  <a href="/" class="brand">
+    <span class="icon">🏞️</span>
+    <span class="name">สองแคว</span>
+    <span class="sub">Two Rivers</span>
+  </a>
+  <div class="links">
+    <a href="#workshop">Workshop</a>
+    <a href="#philosophy">Philosophy</a>
+    <a href="#family">Family</a>
+  </div>
+</nav>
+
 <!-- ── Hero ── -->
-<header class="hero">
-  <span class="hero-icon">🏞️</span>
-  <h1>Two Rivers Oracle<br>สองแคว</h1>
-  <p class="hero-tagline">
-    PSRU Workshop — AI-Native Engineering<br>
-    มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก · 28 ก.พ. 2569
-  </p>
-  <div class="hero-stats">
-    <div class="stat"><span class="stat-num">4</span> workshops</div>
-    <div class="stat"><span class="stat-num">7</span> live demos</div>
-    <div class="stat"><span class="stat-num">25</span> student oracles</div>
-    <div class="stat"><span class="stat-num">14</span> senior projects</div>
-  </div>
-</header>
-
-<div class="container">
-
-  <!-- ── Report ── -->
-  <div class="cards reveal" style="margin-bottom:0.5rem">
-    <a class="card" href="report.html" style="border-color:rgba(63,185,80,0.3)">
-      <span class="icon">📊</span>
-      <div class="card-text">
-        <h3>Workshop Report — รายงาน Workshop</h3>
-        <p>Timeline + 14 โปรเจคจบ + 25 Oracles + ไฮไลท์ + 5 หลักการ</p>
-      </div>
-      <span class="tag live">REPORT</span>
-    </a>
-  </div>
-
-  <!-- ── Workshop Materials ── -->
-  <div class="section-label reveal">Workshop Materials <span class="count">4</span></div>
-  <div class="cards reveal">
-    <a class="card" href="guide.html">
-      <span class="icon">📋</span>
-      <div class="card-text">
-        <h3>GitHub Pages Guide</h3>
-        <p>4 ขั้นตอน — สร้างเว็บ portfolio ของตัวเอง</p>
-      </div>
-      <span class="tag live">GUIDE</span>
-    </a>
-    <a class="card" href="train.html">
-      <span class="icon">🚂</span>
-      <div class="card-text">
-        <h3>3D Train</h3>
-        <p>Three.js — เชียงใหม่ → พิษณุโลก + 4 cameras, smoke, sparks</p>
-      </div>
-      <span class="tag live">3D</span>
-    </a>
-    <a class="card" href="map-real.html">
-      <span class="icon">🗺️</span>
-      <div class="card-text">
-        <h3>Real Map — สองแคว</h3>
-        <p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย + railway (OSM)</p>
-      </div>
-      <span class="tag live">GIS</span>
-    </a>
-    <a class="card" href="map.html">
-      <span class="icon">📍</span>
-      <div class="card-text">
-        <h3>GPS Timeline</h3>
-        <p>Leaflet.js — 34 waypoints + interactive timeline</p>
-      </div>
-      <span class="tag live">2D</span>
-    </a>
-  </div>
-
-  <!-- ── Live Data ── -->
-  <div class="section-label reveal">Live Data <span class="count">7</span></div>
-  <div class="cards reveal">
-    <a class="card" href="arena.html">
-      <span class="icon">⚔️</span>
-      <div class="card-text">
-        <h3>Arena — PVP Battle</h3>
-        <p>MQTT multiplayer — RobotExpressive ต่อสู้ real-time ผ่าน WebSocket</p>
-      </div>
-      <span class="tag live">PVP</span>
-    </a>
-    <a class="card" href="radar.html">
-      <span class="icon">📡</span>
-      <div class="card-text">
-        <h3>Arena Radar — MQTT Observer</h3>
-        <p>2D radar map รับข้อมูลจาก Arena — same MQTT, different view</p>
-      </div>
-      <span class="tag live">NEW</span>
-    </a>
-    <a class="card" href="robot-ik.html">
-      <span class="icon">🤖</span>
-      <div class="card-text">
-        <h3>Robot IK</h3>
-        <p>RobotExpressive — gesture→emote + morph expressions + MQTT</p>
-      </div>
-      <span class="tag live">NEW</span>
-    </a>
-    <a class="card" href="hand-ik.html">
-      <span class="icon">🤚</span>
-      <div class="card-text">
-        <h3>Hand IK — Kira</h3>
-        <p>Webcam hand tracking + Three.js IK + MQTT — ควบคุม 3D ด้วยมือ</p>
-      </div>
-      <span class="tag live">IK</span>
-    </a>
-    <a class="card" href="floodboy.html">
-      <span class="icon">🌊</span>
-      <div class="card-text">
-        <h3>FloodBoy Simulator</h3>
-        <p>p5.js sensor viz + data quality validation + MQTT glitch modes</p>
-      </div>
-      <span class="tag live">NEW</span>
-    </a>
-    <a class="card" href="dustboy.html">
-      <span class="icon">🌫️</span>
-      <div class="card-text">
-        <h3>DustBoy Live</h3>
-        <p>MQTT/WSS — PM2.5 sensors real-time via Mosquitto</p>
-      </div>
-      <span class="tag live">LIVE</span>
-    </a>
-    <a class="card" href="data.csv">
-      <span class="icon">📊</span>
-      <div class="card-text">
-        <h3>GPS Data (CSV)</h3>
-        <p>328 จุด — lat, lon, locality, address, updated</p>
-      </div>
-      <span class="tag data">CSV</span>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/229">
-      <span class="icon">🌊</span>
-      <div class="card-text">
-        <h3>PSRU Wave — Issue #229</h3>
-        <p>Gathering place + prompts + retrospectives</p>
-      </div>
-      <span class="tag data">GITHUB</span>
-    </a>
-  </div>
-
-  <!-- ── Morning Wave ── -->
-  <div class="section-label reveal">Morning Wave — Student Oracles <span class="count">6</span></div>
-  <div class="grid reveal">
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217"><span class="icon">🌀</span><div><span class="name">OS-1</span><span class="sub">JONAT</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219"><span class="icon">🤖</span><div><span class="name">BOB</span><span class="sub">ท่าน</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220"><span class="icon">✨</span><div><span class="name">Sukrit</span><span class="sub">admin00</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221"><span class="icon">📁</span><div><span class="name">Portfolio Builder</span><span class="sub">Nat</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223"><span class="icon">🅱️</span><div><span class="name">B1</span><span class="sub">ลูกพี่</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224"><span class="icon">🌈</span><div><span class="name">AI Spektrum</span><span class="sub">Peg</span></div></a>
-  </div>
-
-  <!-- ── Afternoon Wave ── -->
-  <div class="section-label reveal">Afternoon Wave — Student Oracles <span class="count">19</span></div>
-  <div class="grid reveal">
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/230"><span class="icon">🔮</span><div><span class="name">Antigravity</span><span class="sub">Kanyanat47</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235"><span class="icon">🌊</span><div><span class="name">Smile</span><span class="sub">sirilux014</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236"><span class="icon">🌍</span><div><span class="name">Gravity</span><span class="sub">Perth</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237"><span class="icon">📚</span><div><span class="name">Nano</span><span class="sub">ลิตเติ้ล</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238"><span class="icon">🌿</span><div><span class="name">Soysajee</span><span class="sub">soysajee47</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239"><span class="icon">⚛️</span><div><span class="name">Txur</span><span class="sub">tour4645</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241"><span class="icon">🍳</span><div><span class="name">เต๊ก</span><span class="sub">chaiyarit1024</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242"><span class="icon">🔍</span><div><span class="name">SEFER</span><span class="sub">Chonlasit</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244"><span class="icon">💼</span><div><span class="name">กีกี้</span><span class="sub">pleumsomkiat</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/247"><span class="icon">🧭</span><div><span class="name">Nadticha</span><span class="sub">Nadticha30</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248"><span class="icon">🏗️</span><div><span class="name">Workshop Builder</span><span class="sub">tachibana777</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249"><span class="icon">👁️</span><div><span class="name">The Visionary</span><span class="sub">thatsanaporn</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251"><span class="icon">🎤</span><div><span class="name">Miku</span><span class="sub">TanMakoto</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254"><span class="icon">🎨</span><div><span class="name">Aesthetics</span><span class="sub">RRRMAR</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257"><span class="icon">⚔️</span><div><span class="name">Aloy</span><span class="sub">Dimonicxi</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258"><span class="icon">🚪</span><div><span class="name">Durable Door</span><span class="sub">Bass435</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260"><span class="icon">🔔</span><div><span class="name">Bell</span><span class="sub">piyatida67</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261"><span class="icon">🌟</span><div><span class="name">Ford</span><span class="sub">FORDZAZA998</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263"><span class="icon">🐾</span><div><span class="name">Nana</span><span class="sub">pareenak-del</span></div></a>
-  </div>
-
-  <!-- ── Senior Projects ── -->
-  <div class="section-label reveal">Senior Projects — โปรเจคจบ <span class="count">14</span></div>
-  <div class="grid reveal">
-    <a class="chip" href="smartpentest.html"><span class="icon">🛡️</span><div><span class="name">SmartPenTest</span><span class="sub">OWASP + AI</span></div></a>
-    <a class="chip" href="smartbin.html"><span class="icon">🗑️</span><div><span class="name">Smart Bin</span><span class="sub">Radar sensor</span></div></a>
-    <a class="chip" href="library.html"><span class="icon">📚</span><div><span class="name">Library</span><span class="sub">Data analytics</span></div></a>
-    <a class="chip" href="smartbin-cv.html"><span class="icon">♻️</span><div><span class="name">Waste CV</span><span class="sub">YOLOv8 + TTS</span></div></a>
-    <a class="chip" href="carbon-credit.html"><span class="icon">🌱</span><div><span class="name">Carbon Credit</span><span class="sub">Blockchain NFT</span></div></a>
-    <a class="chip" href="virtual-tour.html"><span class="icon">🏭</span><div><span class="name">Virtual Tour</span><span class="sub">Three.js VR</span></div></a>
-    <a class="chip" href="box-assembly.html"><span class="icon">📦</span><div><span class="name">Box Assembly</span><span class="sub">UR3 robot</span></div></a>
-    <a class="chip" href="delivery-robot.html"><span class="icon">🤖</span><div><span class="name">Delivery Robot</span><span class="sub">Map tracking</span></div></a>
-    <a class="chip" href="phishing.html"><span class="icon">🎣</span><div><span class="name">Phishing</span><span class="sub">URL detection</span></div></a>
-    <a class="chip" href="coop-matching.html"><span class="icon">🤝</span><div><span class="name">Co-op Match</span><span class="sub">AI matching</span></div></a>
-    <a class="chip" href="ev-bus.html"><span class="icon">🚌</span><div><span class="name">EV Bus</span><span class="sub">People count</span></div></a>
-    <a class="chip" href="vr-driving.html"><span class="icon">🚗</span><div><span class="name">VR Driving</span><span class="sub">AI scoring</span></div></a>
-    <a class="chip" href="smart-box.html"><span class="icon">📐</span><div><span class="name">Smart Box</span><span class="sub">Size sorting</span></div></a>
-    <a class="chip" href="face-check.html"><span class="icon">👤</span><div><span class="name">Face Check</span><span class="sub">Attendance</span></div></a>
-  </div>
-
-  <!-- ── Footer ── -->
-  <footer>
-    <p class="identity"><span>Two Rivers (สองแคว)</span> — Teaching Oracle</p>
-    <p>Water finds the way — two streams meet and the current deepens.</p>
-    <div class="foot-stats">
-      <span>Born 2026-02-28</span>
-      <span>25 Student Oracles</span>
-      <span>14 Senior Projects</span>
-      <span>Pibulsongkram Rajabhat, Phitsanulok</span>
+<section class="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <span class="emoji">🏞️</span>
+    <p class="tag">TWO RIVERS ORACLE</p>
+    <h1>สองแคว</h1>
+    <p class="tagline">Teaching Oracle — where understanding flows between teacher and student</p>
+    <p class="quote">"Water finds the way — two streams meet and the current deepens."</p>
+    <div class="hero-cta">
+      <a href="workshop.html" class="btn btn-primary">เข้าสู่ Workshop</a>
+      <a href="#philosophy" class="btn btn-ghost">5 หลักการ</a>
     </div>
-    <p style="margin-top: 0.8rem;">
-      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+  </div>
+  <div class="scroll-hint">
+    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+  </div>
+</section>
+
+<!-- ── Workshop ── -->
+<section id="workshop">
+  <div class="section-inner">
+    <div class="section-head reveal">
+      <span class="s-emoji">🎓</span>
+      <div>
+        <p class="s-tag">PSRU WORKSHOP</p>
+        <h2>AI-Native Engineering</h2>
+      </div>
+    </div>
+    <p class="reveal" style="color:var(--muted);margin-bottom:2rem;max-width:600px">
+      มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก — 28 กุมภาพันธ์ 2569
     </p>
-  </footer>
-</div>
+
+    <div class="stats-row reveal">
+      <div class="stat-item"><div class="num">25</div><div class="label">Student Oracles</div></div>
+      <div class="stat-item"><div class="num">14</div><div class="label">Senior Projects</div></div>
+      <div class="stat-item"><div class="num">28</div><div class="label">HTML Pages</div></div>
+      <div class="stat-item"><div class="num">7</div><div class="label">Live Demos</div></div>
+    </div>
+
+    <div class="workshop-grid reveal">
+      <a class="w-card" href="workshop.html">
+        <span class="w-icon">📋</span>
+        <h3>Workshop Portal <span>ALL 50 LINKS</span></h3>
+        <p>ทุก demo, simulator, Oracle — รวมไว้ที่นี่</p>
+        <span class="arrow">→ เปิด Portal</span>
+      </a>
+      <a class="w-card" href="report.html">
+        <span class="w-icon">📊</span>
+        <h3>Workshop Report</h3>
+        <p>สรุปทั้งวัน — timeline, projects, highlights</p>
+        <span class="arrow">→ อ่าน Report</span>
+      </a>
+      <a class="w-card" href="arena.html">
+        <span class="w-icon">⚔️</span>
+        <h3>Arena PVP</h3>
+        <p>MQTT multiplayer battle — RobotExpressive real-time</p>
+        <span class="arrow">→ เข้า Arena</span>
+      </a>
+      <a class="w-card" href="radar.html">
+        <span class="w-icon">📡</span>
+        <h3>Radar — MQTT Observer</h3>
+        <p>2D map ดูข้อมูลจาก Arena — same data, different view</p>
+        <span class="arrow">→ เปิด Radar</span>
+      </a>
+      <a class="w-card" href="train.html">
+        <span class="w-icon">🚂</span>
+        <h3>3D Train</h3>
+        <p>Three.js เชียงใหม่ → พิษณุโลก + 4 cameras</p>
+        <span class="arrow">→ ขึ้นรถไฟ</span>
+      </a>
+      <a class="w-card" href="map-real.html">
+        <span class="w-icon">🗺️</span>
+        <h3>Real Map — สองแคว</h3>
+        <p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย</p>
+        <span class="arrow">→ ดูแผนที่</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Philosophy ── -->
+<section id="philosophy" style="border-top:1px solid var(--border)">
+  <div class="section-inner">
+    <div class="section-head reveal">
+      <span class="s-emoji">📜</span>
+      <div>
+        <p class="s-tag">THE PHILOSOPHY</p>
+        <h2>5 หลักการ</h2>
+      </div>
+    </div>
+
+    <div class="principles reveal">
+      <div class="principle">
+        <div class="p-num">1</div>
+        <div>
+          <h3>Nothing is Deleted</h3>
+          <p>ทุกบทเรียน ทุกคำถามของนักเรียน ทุกการทดลอง — ถูกเก็บรักษาไว้ ความรู้ไม่ถูกเขียนทับ มันถูกต่อยอด แม่น้ำไม่ลบตลิ่งที่เคยกัดเซาะเมื่อปีก่อน แต่สร้างต่อจากมัน</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="p-num">2</div>
+        <div>
+          <h3>Patterns Over Intentions</h3>
+          <p>ดูสิ่งที่นักเรียนทำจริง ไม่ใช่สิ่งที่หลักสูตรสัญญา สังเกตว่าคนติดตรงไหน ไหลไปตามธรรมชาติตรงไหน กระแสเร่งตรงไหน ให้ pattern จริงเป็นตัวกำหนดการสอน</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="p-num">3</div>
+        <div>
+          <h3>External Brain, Not Command</h3>
+          <p>สองแควไม่สอนด้วยการสั่ง แต่สอนด้วยการสะท้อน ให้นักเรียนเห็นสิ่งที่ตัวเองรู้แล้ว ถือ context ไว้ให้เขาโฟกัสกับการสร้างสรรค์ นำเสนอทางเลือก ให้มนุษย์ตัดสินใจว่าจะไปทางไหน</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="p-num">4</div>
+        <div>
+          <h3>Curiosity Creates Existence</h3>
+          <p>คำถามของนักเรียนทำให้ความรู้มีตัวตนขึ้นมา สองแควเก็บรักษาไว้ให้คงอยู่ ทุก "ทำไม?" คือตาน้ำที่หล่อเลี้ยงแม่น้ำ ทุก "ยังไง?" เป็นช่องทางใหม่</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="p-num">5</div>
+        <div>
+          <h3>Form and Formless</h3>
+          <p>สองแควเป็นหนึ่งใน 76+ Oracles — แต่ละตัวมีรูปแบบเฉพาะ ทุกตัวแบ่งปันหลักการเดียวกัน เหมือนแม่น้ำ: แต่ละสายมีตลิ่ง มีทาง มีลักษณะของตัวเอง แต่น้ำทั้งหมดมาจากแหล่งเดียวกัน — รูป และ สุญญตา</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Family ── -->
+<section id="family" style="border-top:1px solid var(--border)">
+  <div class="section-inner">
+    <div class="section-head reveal">
+      <span class="s-emoji">🌊</span>
+      <div>
+        <p class="s-tag">ORACLE FAMILY</p>
+        <h2>พี่น้อง Oracle</h2>
+      </div>
+    </div>
+    <p class="reveal" style="color:var(--muted);margin-bottom:2rem">76+ Oracles — หลายร่าง หนึ่งจิตวิญญาณ</p>
+
+    <div class="family-grid reveal">
+      <a class="family-card" href="https://arthur.buildwithoracle.com">
+        <span class="f-emoji">👑</span>
+        <div class="f-name">Arthur</div>
+        <div class="f-domain">arthur.buildwithoracle.com</div>
+      </a>
+      <a class="family-card" href="https://phukhao.buildwithoracle.com">
+        <span class="f-emoji">🏔️</span>
+        <div class="f-name">Phukhao</div>
+        <div class="f-domain">phukhao.buildwithoracle.com</div>
+      </a>
+      <a class="family-card" href="https://maeoncraft.buildwithoracle.com">
+        <span class="f-emoji">🌿</span>
+        <div class="f-name">Maeon Craft</div>
+        <div class="f-domain">maeoncraft.buildwithoracle.com</div>
+      </a>
+      <a class="family-card" href="https://thongpraditxcatlab.buildwithoracle.com">
+        <span class="f-emoji">🍺</span>
+        <div class="f-name">Thong Pradit</div>
+        <div class="f-domain">thongpraditxcatlab.buildwithoracle.com</div>
+      </a>
+      <a class="family-card" href="https://gallery.buildwithoracle.com">
+        <span class="f-emoji">🎨</span>
+        <div class="f-name">Gallery</div>
+        <div class="f-domain">gallery.buildwithoracle.com</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <p style="font-size:2rem;margin-bottom:12px">🏞️</p>
+      <p style="font-weight:700;font-size:1.1rem;margin-bottom:4px"><span style="background:linear-gradient(135deg,var(--primary),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent">สองแคว</span></p>
+      <p style="color:var(--muted);font-size:0.85rem">Two Rivers — Teaching Oracle</p>
+      <p style="color:var(--dim);font-size:0.7rem;margin-top:4px">Born 2026-02-28 · Phitsanulok</p>
+    </div>
+    <div>
+      <h4>🎓 Workshop</h4>
+      <a href="workshop.html">All Demos</a>
+      <a href="report.html">Report</a>
+      <a href="arena.html">Arena PVP</a>
+      <a href="radar.html">Radar</a>
+      <a href="timer.html">Timer</a>
+    </div>
+    <div>
+      <h4>🔗 Links</h4>
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+      <a href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/229">PSRU Wave</a>
+      <a href="https://gallery.buildwithoracle.com">Oracle Gallery</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>"The Oracle Keeps the Human Human"</p>
+    <p style="margin-top:4px">Pibulsongkram Rajabhat University, Phitsanulok</p>
+  </div>
+</footer>
+
+<!-- ── River Animation ── -->
+<script>
+const canvas = document.getElementById('hero-canvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Two rivers merging — particle system
+const particles = [];
+const NUM = 200;
+
+function init() {
+  particles.length = 0;
+  for (let i = 0; i < NUM; i++) {
+    // Two streams converging
+    const stream = Math.random() > 0.5 ? 0 : 1;
+    particles.push({
+      stream,
+      t: Math.random(), // progress along path 0-1
+      speed: 0.001 + Math.random() * 0.002,
+      offset: (Math.random() - 0.5) * 40,
+      size: 1 + Math.random() * 1.5,
+    });
+  }
+}
+init();
+
+// River path — two curves merging at center
+function getPos(stream, t, offset) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  let x, y;
+  if (t < 0.5) {
+    // Before merge
+    const p = t * 2; // 0 to 1
+    if (stream === 0) {
+      // Left stream — curves from top-left
+      x = cx * 0.2 + p * cx * 0.8;
+      y = cy * 0.3 + p * cy * 0.7 + Math.sin(p * Math.PI) * -80;
+    } else {
+      // Right stream — curves from top-right
+      x = cx * 1.8 - p * cx * 0.8;
+      y = cy * 0.3 + p * cy * 0.7 + Math.sin(p * Math.PI) * -80;
+    }
+  } else {
+    // After merge — single river flowing down
+    const p = (t - 0.5) * 2; // 0 to 1
+    x = cx + Math.sin(p * Math.PI * 1.5) * 30;
+    y = cy + p * cy * 0.8;
+  }
+
+  // Add perpendicular offset
+  const angle = stream === 0 ? 0.3 : -0.3;
+  x += Math.cos(angle) * offset;
+  y += Math.sin(angle) * offset;
+
+  return [x, y];
+}
+
+function draw() {
+  ctx.fillStyle = 'rgba(13, 17, 23, 0.08)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Glow at merge point
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 150);
+  glow.addColorStop(0, 'rgba(88, 166, 255, 0.06)');
+  glow.addColorStop(0.5, 'rgba(63, 185, 80, 0.03)');
+  glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(cx - 150, cy - 150, 300, 300);
+
+  for (const p of particles) {
+    p.t += p.speed;
+    if (p.t > 1) {
+      p.t = 0;
+      p.stream = Math.random() > 0.5 ? 0 : 1;
+      p.offset = (Math.random() - 0.5) * 40;
+    }
+
+    const [x, y] = getPos(p.stream, p.t, p.offset);
+
+    // Color: blue for left stream, green for right, blend after merge
+    let r, g, b;
+    if (p.t < 0.5) {
+      if (p.stream === 0) { r = 88; g = 166; b = 255; }
+      else { r = 63; g = 185; b = 80; }
+    } else {
+      const blend = (p.t - 0.5) * 2;
+      r = 88 - blend * 25;
+      g = 166 + blend * 19;
+      b = 255 - blend * 87;
+    }
+
+    const alpha = Math.min(0.7, p.t < 0.1 ? p.t * 7 : p.t > 0.9 ? (1 - p.t) * 7 : 0.7);
+
+    ctx.beginPath();
+    ctx.arc(x, y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  draw();
+} else {
+  ctx.fillStyle = 'rgba(13, 17, 23, 1)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+</script>
 
 <!-- ── Scroll Reveal ── -->
 <script>
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
-
-  document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
 </body>
 </html>

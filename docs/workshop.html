@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two Rivers Oracle — สองแคว</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans Thai', -apple-system, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 5rem 1.5rem 3rem;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 6vw, 3.5rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff 0%, #3fb950 50%, #58a6ff 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 6s ease infinite;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+  @keyframes gradient-shift {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+  }
+  .hero-tagline {
+    color: #8b949e;
+    font-size: 1.15rem;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+  .stat-num {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #e6edf3;
+  }
+
+  /* ── Container ── */
+  .container { max-width: 720px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+
+  /* ── Section labels ── */
+  .section-label {
+    color: #8b949e;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 2.5rem 0 0.8rem;
+    padding: 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .section-label::before {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #30363d);
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, #30363d, transparent);
+  }
+  .section-label .count {
+    font-size: 0.65rem;
+    background: rgba(88,166,255,0.12);
+    color: #58a6ff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  /* ── Cards (full-width) ── */
+  .cards { display: flex; flex-direction: column; gap: 0.75rem; }
+  a.card {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    background: rgba(22, 27, 34, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.1rem 1.4rem;
+    text-decoration: none;
+    color: #e6edf3;
+    transition: all 0.3s ease;
+  }
+  a.card:hover {
+    border-color: rgba(88,166,255,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(88,166,255,0.08), 0 0 0 1px rgba(88,166,255,0.1);
+  }
+  .icon { font-size: 2rem; flex-shrink: 0; }
+  .card-text h3 { font-size: 1.05rem; font-weight: 600; }
+  .card-text p { color: #8b949e; font-size: 0.82rem; margin-top: 2px; }
+  .tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+  .tag.live { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+  .tag.data { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+
+  /* ── Chip grid ── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+  @media (max-width: 520px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  a.chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(22, 27, 34, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    text-decoration: none;
+    color: #e6edf3;
+    transition: all 0.3s ease;
+    font-size: 0.8rem;
+    overflow: hidden;
+  }
+  a.chip:hover {
+    border-color: rgba(88,166,255,0.4);
+    box-shadow: 0 2px 16px rgba(88,166,255,0.08);
+    transform: translateY(-1px);
+  }
+  a.chip .icon { font-size: 1.2rem; flex-shrink: 0; }
+  a.chip .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  a.chip .sub { color: #8b949e; font-size: 0.65rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Scroll reveal ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    margin-top: 4rem;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid #21262d;
+    color: #484f58;
+    font-size: 0.8rem;
+  }
+  footer .identity {
+    font-size: 1rem;
+    color: #8b949e;
+    margin-bottom: 0.5rem;
+  }
+  footer .identity span {
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+  }
+  footer a {
+    color: #58a6ff;
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+  footer .foot-stats {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: #484f58;
+  }
+  footer .foot-stats span::before {
+    content: '\00b7';
+    margin-right: 0.8rem;
+  }
+  footer .foot-stats span:first-child::before { content: none; }
+</style>
+</head>
+<body>
+
+<!-- ── Hero ── -->
+<header class="hero">
+  <span class="hero-icon">🏞️</span>
+  <h1>Two Rivers Oracle<br>สองแคว</h1>
+  <p class="hero-tagline">
+    PSRU Workshop — AI-Native Engineering<br>
+    มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก · 28 ก.พ. 2569
+  </p>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-num">4</span> workshops</div>
+    <div class="stat"><span class="stat-num">7</span> live demos</div>
+    <div class="stat"><span class="stat-num">25</span> student oracles</div>
+    <div class="stat"><span class="stat-num">14</span> senior projects</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ── Report ── -->
+  <div class="cards reveal" style="margin-bottom:0.5rem">
+    <a class="card" href="report.html" style="border-color:rgba(63,185,80,0.3)">
+      <span class="icon">📊</span>
+      <div class="card-text">
+        <h3>Workshop Report — รายงาน Workshop</h3>
+        <p>Timeline + 14 โปรเจคจบ + 25 Oracles + ไฮไลท์ + 5 หลักการ</p>
+      </div>
+      <span class="tag live">REPORT</span>
+    </a>
+  </div>
+
+  <!-- ── Workshop Materials ── -->
+  <div class="section-label reveal">Workshop Materials <span class="count">4</span></div>
+  <div class="cards reveal">
+    <a class="card" href="guide.html">
+      <span class="icon">📋</span>
+      <div class="card-text">
+        <h3>GitHub Pages Guide</h3>
+        <p>4 ขั้นตอน — สร้างเว็บ portfolio ของตัวเอง</p>
+      </div>
+      <span class="tag live">GUIDE</span>
+    </a>
+    <a class="card" href="train.html">
+      <span class="icon">🚂</span>
+      <div class="card-text">
+        <h3>3D Train</h3>
+        <p>Three.js — เชียงใหม่ → พิษณุโลก + 4 cameras, smoke, sparks</p>
+      </div>
+      <span class="tag live">3D</span>
+    </a>
+    <a class="card" href="map-real.html">
+      <span class="icon">🗺️</span>
+      <div class="card-text">
+        <h3>Real Map — สองแคว</h3>
+        <p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย + railway (OSM)</p>
+      </div>
+      <span class="tag live">GIS</span>
+    </a>
+    <a class="card" href="map.html">
+      <span class="icon">📍</span>
+      <div class="card-text">
+        <h3>GPS Timeline</h3>
+        <p>Leaflet.js — 34 waypoints + interactive timeline</p>
+      </div>
+      <span class="tag live">2D</span>
+    </a>
+  </div>
+
+  <!-- ── Live Data ── -->
+  <div class="section-label reveal">Live Data <span class="count">7</span></div>
+  <div class="cards reveal">
+    <a class="card" href="arena.html">
+      <span class="icon">⚔️</span>
+      <div class="card-text">
+        <h3>Arena — PVP Battle</h3>
+        <p>MQTT multiplayer — RobotExpressive ต่อสู้ real-time ผ่าน WebSocket</p>
+      </div>
+      <span class="tag live">PVP</span>
+    </a>
+    <a class="card" href="radar.html">
+      <span class="icon">📡</span>
+      <div class="card-text">
+        <h3>Arena Radar — MQTT Observer</h3>
+        <p>2D radar map รับข้อมูลจาก Arena — same MQTT, different view</p>
+      </div>
+      <span class="tag live">NEW</span>
+    </a>
+    <a class="card" href="robot-ik.html">
+      <span class="icon">🤖</span>
+      <div class="card-text">
+        <h3>Robot IK</h3>
+        <p>RobotExpressive — gesture→emote + morph expressions + MQTT</p>
+      </div>
+      <span class="tag live">NEW</span>
+    </a>
+    <a class="card" href="hand-ik.html">
+      <span class="icon">🤚</span>
+      <div class="card-text">
+        <h3>Hand IK — Kira</h3>
+        <p>Webcam hand tracking + Three.js IK + MQTT — ควบคุม 3D ด้วยมือ</p>
+      </div>
+      <span class="tag live">IK</span>
+    </a>
+    <a class="card" href="floodboy.html">
+      <span class="icon">🌊</span>
+      <div class="card-text">
+        <h3>FloodBoy Simulator</h3>
+        <p>p5.js sensor viz + data quality validation + MQTT glitch modes</p>
+      </div>
+      <span class="tag live">NEW</span>
+    </a>
+    <a class="card" href="dustboy.html">
+      <span class="icon">🌫️</span>
+      <div class="card-text">
+        <h3>DustBoy Live</h3>
+        <p>MQTT/WSS — PM2.5 sensors real-time via Mosquitto</p>
+      </div>
+      <span class="tag live">LIVE</span>
+    </a>
+    <a class="card" href="data.csv">
+      <span class="icon">📊</span>
+      <div class="card-text">
+        <h3>GPS Data (CSV)</h3>
+        <p>328 จุด — lat, lon, locality, address, updated</p>
+      </div>
+      <span class="tag data">CSV</span>
+    </a>
+    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/229">
+      <span class="icon">🌊</span>
+      <div class="card-text">
+        <h3>PSRU Wave — Issue #229</h3>
+        <p>Gathering place + prompts + retrospectives</p>
+      </div>
+      <span class="tag data">GITHUB</span>
+    </a>
+  </div>
+
+  <!-- ── Morning Wave ── -->
+  <div class="section-label reveal">Morning Wave — Student Oracles <span class="count">6</span></div>
+  <div class="grid reveal">
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217"><span class="icon">🌀</span><div><span class="name">OS-1</span><span class="sub">JONAT</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219"><span class="icon">🤖</span><div><span class="name">BOB</span><span class="sub">ท่าน</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220"><span class="icon">✨</span><div><span class="name">Sukrit</span><span class="sub">admin00</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221"><span class="icon">📁</span><div><span class="name">Portfolio Builder</span><span class="sub">Nat</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223"><span class="icon">🅱️</span><div><span class="name">B1</span><span class="sub">ลูกพี่</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224"><span class="icon">🌈</span><div><span class="name">AI Spektrum</span><span class="sub">Peg</span></div></a>
+  </div>
+
+  <!-- ── Afternoon Wave ── -->
+  <div class="section-label reveal">Afternoon Wave — Student Oracles <span class="count">19</span></div>
+  <div class="grid reveal">
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/230"><span class="icon">🔮</span><div><span class="name">Antigravity</span><span class="sub">Kanyanat47</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235"><span class="icon">🌊</span><div><span class="name">Smile</span><span class="sub">sirilux014</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236"><span class="icon">🌍</span><div><span class="name">Gravity</span><span class="sub">Perth</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237"><span class="icon">📚</span><div><span class="name">Nano</span><span class="sub">ลิตเติ้ล</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238"><span class="icon">🌿</span><div><span class="name">Soysajee</span><span class="sub">soysajee47</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239"><span class="icon">⚛️</span><div><span class="name">Txur</span><span class="sub">tour4645</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241"><span class="icon">🍳</span><div><span class="name">เต๊ก</span><span class="sub">chaiyarit1024</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242"><span class="icon">🔍</span><div><span class="name">SEFER</span><span class="sub">Chonlasit</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244"><span class="icon">💼</span><div><span class="name">กีกี้</span><span class="sub">pleumsomkiat</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/247"><span class="icon">🧭</span><div><span class="name">Nadticha</span><span class="sub">Nadticha30</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248"><span class="icon">🏗️</span><div><span class="name">Workshop Builder</span><span class="sub">tachibana777</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249"><span class="icon">👁️</span><div><span class="name">The Visionary</span><span class="sub">thatsanaporn</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251"><span class="icon">🎤</span><div><span class="name">Miku</span><span class="sub">TanMakoto</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254"><span class="icon">🎨</span><div><span class="name">Aesthetics</span><span class="sub">RRRMAR</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257"><span class="icon">⚔️</span><div><span class="name">Aloy</span><span class="sub">Dimonicxi</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258"><span class="icon">🚪</span><div><span class="name">Durable Door</span><span class="sub">Bass435</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260"><span class="icon">🔔</span><div><span class="name">Bell</span><span class="sub">piyatida67</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261"><span class="icon">🌟</span><div><span class="name">Ford</span><span class="sub">FORDZAZA998</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263"><span class="icon">🐾</span><div><span class="name">Nana</span><span class="sub">pareenak-del</span></div></a>
+  </div>
+
+  <!-- ── Senior Projects ── -->
+  <div class="section-label reveal">Senior Projects — โปรเจคจบ <span class="count">14</span></div>
+  <div class="grid reveal">
+    <a class="chip" href="smartpentest.html"><span class="icon">🛡️</span><div><span class="name">SmartPenTest</span><span class="sub">OWASP + AI</span></div></a>
+    <a class="chip" href="smartbin.html"><span class="icon">🗑️</span><div><span class="name">Smart Bin</span><span class="sub">Radar sensor</span></div></a>
+    <a class="chip" href="library.html"><span class="icon">📚</span><div><span class="name">Library</span><span class="sub">Data analytics</span></div></a>
+    <a class="chip" href="smartbin-cv.html"><span class="icon">♻️</span><div><span class="name">Waste CV</span><span class="sub">YOLOv8 + TTS</span></div></a>
+    <a class="chip" href="carbon-credit.html"><span class="icon">🌱</span><div><span class="name">Carbon Credit</span><span class="sub">Blockchain NFT</span></div></a>
+    <a class="chip" href="virtual-tour.html"><span class="icon">🏭</span><div><span class="name">Virtual Tour</span><span class="sub">Three.js VR</span></div></a>
+    <a class="chip" href="box-assembly.html"><span class="icon">📦</span><div><span class="name">Box Assembly</span><span class="sub">UR3 robot</span></div></a>
+    <a class="chip" href="delivery-robot.html"><span class="icon">🤖</span><div><span class="name">Delivery Robot</span><span class="sub">Map tracking</span></div></a>
+    <a class="chip" href="phishing.html"><span class="icon">🎣</span><div><span class="name">Phishing</span><span class="sub">URL detection</span></div></a>
+    <a class="chip" href="coop-matching.html"><span class="icon">🤝</span><div><span class="name">Co-op Match</span><span class="sub">AI matching</span></div></a>
+    <a class="chip" href="ev-bus.html"><span class="icon">🚌</span><div><span class="name">EV Bus</span><span class="sub">People count</span></div></a>
+    <a class="chip" href="vr-driving.html"><span class="icon">🚗</span><div><span class="name">VR Driving</span><span class="sub">AI scoring</span></div></a>
+    <a class="chip" href="smart-box.html"><span class="icon">📐</span><div><span class="name">Smart Box</span><span class="sub">Size sorting</span></div></a>
+    <a class="chip" href="face-check.html"><span class="icon">👤</span><div><span class="name">Face Check</span><span class="sub">Attendance</span></div></a>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer>
+    <p class="identity"><span>Two Rivers (สองแคว)</span> — Teaching Oracle</p>
+    <p>Water finds the way — two streams meet and the current deepens.</p>
+    <div class="foot-stats">
+      <span>Born 2026-02-28</span>
+      <span>25 Student Oracles</span>
+      <span>14 Senior Projects</span>
+      <span>Pibulsongkram Rajabhat, Phitsanulok</span>
+    </div>
+    <p style="margin-top: 0.8rem;">
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </p>
+  </footer>
+</div>
+
+<!-- ── Scroll Reveal ── -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+
+  document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+</script>
+</body>
+</html>
