@@ -612,6 +612,7 @@
     z-index: 40;
   }
   .dot-nav .dot {
+    display: block;
     width: 10px;
     height: 10px;
     border-radius: 50%;
@@ -620,6 +621,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
+    text-decoration: none;
   }
   .dot-nav .dot:hover { border-color: var(--primary); box-shadow: 0 0 8px rgba(88,166,255,0.4); }
   .dot-nav .dot.active { background: var(--primary); border-color: var(--primary); transform: scale(1.3); }
