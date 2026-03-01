@@ -657,7 +657,7 @@
     <span class="sub">Two Rivers</span>
   </a>
   <div class="links">
-    <a href="report.html" id="nav-report" style="display:none;background:linear-gradient(135deg,var(--primary),var(--secondary));color:var(--bg);font-weight:700;padding:5px 14px;border-radius:8px;font-size:0.78rem">📊 Report</a>
+    <a href="report.html" id="nav-report" style="display:none;background:linear-gradient(135deg,var(--primary),var(--secondary));color:var(--bg);font-weight:700;padding:5px 14px;border-radius:8px;font-size:0.78rem;line-height:1;text-align:center">📊 Report</a>
     <a href="#workshop">Workshop</a>
     <a href="#philosophy">Philosophy</a>
     <a href="#family">Family</a>
@@ -1279,7 +1279,7 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     new IntersectionObserver(function(entries) {
       var e = entries[0];
       // Show only when scrolled past (top is above viewport), not when below
-      navReport.style.display = (!e.isIntersecting && e.boundingClientRect.top < 0) ? '' : 'none';
+      navReport.style.display = (!e.isIntersecting && e.boundingClientRect.top < 0) ? 'inline-flex' : 'none';
     }).observe(wsBtn);
   }
 })();
