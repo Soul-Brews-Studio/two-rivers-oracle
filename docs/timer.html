@@ -122,7 +122,7 @@
 <div class="timer-wrap">
   <div class="label" id="label">Workshop Timer</div>
   <div class="clock" id="clock">20:00</div>
-  <div class="sub-time" id="sub">10:50 → 11:10</div>
+  <div class="sub-time" id="sub">10:50 → 11:15</div>
   <div class="progress-wrap"><div class="progress-bar" id="progress" style="width:100%"></div></div>
   <div class="msg" id="msg"></div>
 </div>
@@ -132,8 +132,8 @@
 <script>
 // ===== CONFIG =====
 // Target end time: 2026-03-01 11:10:00 ICT (UTC+7)
-const END_TIME = new Date('2026-03-01T11:10:00+07:00').getTime();
-const DURATION = 20 * 60 * 1000; // 20 minutes in ms
+const END_TIME = new Date('2026-03-01T11:15:00+07:00').getTime();
+const DURATION = 25 * 60 * 1000; // 25 minutes in ms
 const START_TIME = END_TIME - DURATION;
 
 const clockEl = document.getElementById('clock');
