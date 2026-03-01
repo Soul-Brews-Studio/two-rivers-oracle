@@ -58,6 +58,7 @@
     transition: color 0.2s;
   }
   nav .links a:hover { color: var(--primary); }
+  nav .links a.active { color: var(--primary); }
 
   /* ── Hero ── */
   .hero {
@@ -696,7 +697,7 @@
 <!-- ── Workshop ── -->
 <section id="workshop" style="border-top:1px solid var(--border)">
   <div class="section-inner">
-    <div style="margin-bottom:2rem">
+    <div style="position:sticky;top:0;z-index:10;background:var(--bg);padding:1.2rem 0 1rem;margin:0 -1.5rem;padding-left:1.5rem;padding-right:1.5rem;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.8rem">
         <span style="font-size:1.8rem">🎓</span>
         <div>
@@ -1257,6 +1258,8 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 <script>
 (function() {
   const dots = document.querySelectorAll('.dot-nav .dot');
+  const navLinks = document.querySelectorAll('nav .links a');
+  const sectionIds = [null, 'workshop', 'philosophy', 'family', 'journey'];
   const sections = [
     document.querySelector('.hero'),
     document.getElementById('workshop'),
@@ -1264,14 +1267,17 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     document.getElementById('family'),
     document.getElementById('origin')
   ];
+  function setActive(idx) {
+    dots.forEach(d => d.classList.remove('active'));
+    navLinks.forEach(a => a.classList.remove('active'));
+    if (idx >= 0) {
+      dots[idx].classList.add('active');
+      var id = sectionIds[idx];
+      if (id) navLinks.forEach(a => { if (a.getAttribute('href') === '#' + id) a.classList.add('active'); });
+    }
+  }
   const spy = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        const idx = sections.indexOf(e.target);
-        dots.forEach(d => d.classList.remove('active'));
-        if (idx >= 0) dots[idx].classList.add('active');
-      }
-    });
+    entries.forEach(e => { if (e.isIntersecting) setActive(sections.indexOf(e.target)); });
   }, { threshold: 0.3 });
   sections.forEach(s => { if (s) spy.observe(s); });
 })();
