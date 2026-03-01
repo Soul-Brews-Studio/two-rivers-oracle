@@ -1249,7 +1249,7 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 <script>
 (function() {
   const dots = document.querySelectorAll('.dot-nav .dot');
-  const navLinks = document.querySelectorAll('nav .links a');
+  const navLinks = document.querySelectorAll('nav .links a:not(#nav-report)');
   const sectionIds = [null, 'workshop', 'philosophy', 'family', 'journey'];
   const sections = [
     document.querySelector('.hero'),
@@ -1269,7 +1269,7 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   }
   const spy = new IntersectionObserver((entries) => {
     entries.forEach(e => { if (e.isIntersecting) setActive(sections.indexOf(e.target)); });
-  }, { threshold: 0.3 });
+  }, { threshold: 0.1 });
   sections.forEach(s => { if (s) spy.observe(s); });
 
   // Show Report in navbar only after scrolling past the buttons
