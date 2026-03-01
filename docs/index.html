@@ -544,48 +544,6 @@
     font-size: 3rem;
     background: linear-gradient(135deg, var(--ph-from, #1a1f2e) 0%, var(--ph-to, #0d1117) 100%);
   }
-  /* ── Rich project placeholders ── */
-  .gcard-ph-rich {
-    aspect-ratio: 16/10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    background: linear-gradient(135deg, var(--ph-from, #1a1f2e) 0%, var(--ph-to, #0d1117) 100%);
-    position: relative;
-    overflow: hidden;
-  }
-  .gcard-ph-rich::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 20% 30%, var(--ph-accent, rgba(88,166,255,0.08)) 0%, transparent 50%),
-      radial-gradient(circle at 80% 70%, var(--ph-accent, rgba(88,166,255,0.06)) 0%, transparent 50%);
-  }
-  .gcard-ph-rich::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 16px 16px;
-  }
-  .gcard-ph-rich .ph-emoji {
-    font-size: 3.2rem;
-    filter: drop-shadow(0 0 20px var(--ph-glow, rgba(88,166,255,0.3)));
-    z-index: 1;
-    transition: transform 0.4s ease;
-  }
-  a.gcard:hover .gcard-ph-rich .ph-emoji { transform: scale(1.15); }
-  .gcard-ph-rich .ph-tech {
-    font-size: 0.6rem;
-    font-weight: 600;
-    color: var(--ph-accent, rgba(88,166,255,0.5));
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    z-index: 1;
-  }
   .gcard-info {
     padding: 0.8rem 1rem;
     display: flex;
@@ -707,9 +665,9 @@
       <div class="stats-row" style="margin:0.5rem 0;gap:1rem">
         <div class="stat-item"><div class="num" style="font-size:1.5rem">47</div><div class="label">Portfolios</div></div>
         <div class="stat-item"><div class="num" style="font-size:1.5rem">109</div><div class="label">Student Apps</div></div>
-        <div class="stat-item"><div class="num" style="font-size:1.5rem">9</div><div class="label">Live Landings</div></div>
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">12</div><div class="label">Live Landings</div></div>
         <div class="stat-item"><div class="num" style="font-size:1.5rem">14</div><div class="label">Senior Projects</div></div>
-        <div class="stat-item"><div class="num" style="font-size:1.5rem">179</div><div class="label">Total</div></div>
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">182</div><div class="label">Total</div></div>
       </div>
       <div style="text-align:center;margin-top:0.8rem">
         <a href="report.html" class="btn btn-primary" style="font-size:0.8rem;padding:8px 20px">📊 Report</a>
@@ -767,7 +725,7 @@
     </div>
 
     <!-- Student Oracle Landings -->
-    <div class="section-label reveal">Student Oracle Landings <span class="count">9</span></div>
+    <div class="section-label reveal">Student Oracle Landings <span class="count">12</span></div>
     <div class="gallery reveal">
       <a class="gcard" href="https://kanyanat.buildwithoracle.com">
         <div class="gcard-img"><img src="screenshots/antigravity.png" alt="Antigravity" loading="lazy" decoding="async"></div>
@@ -781,9 +739,9 @@
         <div class="gcard-img"><img src="screenshots/sefer.png" alt="SEFER" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🔍</span><div class="gcard-text"><h3>SEFER — Chonlasit</h3><p>sefer.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
       </a>
-      <a class="gcard" href="https://soysajee.buildwithoracle.com">
-        <div class="gcard-img"><img src="screenshots/soysajee.png" alt="Moon Lover" loading="lazy" decoding="async"></div>
-        <div class="gcard-info"><span class="gcard-icon">🌿</span><div class="gcard-text"><h3>Moon Lover — Soysajee</h3><p>soysajee.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
+      <a class="gcard" href="https://moonlover.buildwithoracle.com">
+        <div class="gcard-img"><img src="screenshots/moonlover.png" alt="Moon Lover" loading="lazy" decoding="async"></div>
+        <div class="gcard-info"><span class="gcard-icon">🌙</span><div class="gcard-text"><h3>Moon Lover — Soysajee</h3><p>moonlover.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
       </a>
       <a class="gcard" href="https://txur.buildwithoracle.com">
         <div class="gcard-img"><img src="screenshots/txur.png" alt="Txur" loading="lazy" decoding="async"></div>
@@ -804,6 +762,18 @@
       <a class="gcard" href="https://suasaming.buildwithoracle.com">
         <div class="gcard-img"><img src="screenshots/suasaming.png" alt="เสือสมิง" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🐯</span><div class="gcard-text"><h3>เสือสมิง — Sua Saming</h3><p>suasaming.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
+      </a>
+      <a class="gcard" href="https://little.buildwithoracle.com">
+        <div class="gcard-img"><img src="screenshots/little.png" alt="Little Oracle" loading="lazy" decoding="async"></div>
+        <div class="gcard-info"><span class="gcard-icon">🌊</span><div class="gcard-text"><h3>Little Oracle — Kantawich</h3><p>little.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
+      </a>
+      <a class="gcard" href="https://rrrmar.buildwithoracle.com">
+        <div class="gcard-img"><img src="screenshots/rrrmar.png" alt="RRRMAR" loading="lazy" decoding="async"></div>
+        <div class="gcard-info"><span class="gcard-icon">🎨</span><div class="gcard-text"><h3>Aesthetics — RRRMAR</h3><p>rrrmar.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
+      </a>
+      <a class="gcard" href="https://bear.buildwithoracle.com">
+        <div class="gcard-img"><img src="screenshots/bear.png" alt="Bear Oracle" loading="lazy" decoding="async"></div>
+        <div class="gcard-info"><span class="gcard-icon">🐻</span><div class="gcard-text"><h3>Bear — Natcharika</h3><p>bear.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
       </a>
     </div>
 
