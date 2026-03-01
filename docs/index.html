@@ -1282,12 +1282,14 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   }, { threshold: 0.3 });
   sections.forEach(s => { if (s) spy.observe(s); });
 
-  // Show Report in navbar when buttons scroll out
+  // Show Report in navbar only after scrolling past the buttons
   var wsBtn = document.getElementById('ws-buttons');
   var navReport = document.getElementById('nav-report');
   if (wsBtn && navReport) {
     new IntersectionObserver(function(entries) {
-      navReport.style.display = entries[0].isIntersecting ? 'none' : '';
+      var e = entries[0];
+      // Show only when scrolled past (top is above viewport), not when below
+      navReport.style.display = (!e.isIntersecting && e.boundingClientRect.top < 0) ? '' : 'none';
     }).observe(wsBtn);
   }
 })();
