@@ -203,22 +203,24 @@
   /* ── Workshop header (morph) ── */
   .ws-header {
     position: sticky;
-    top: 0;
-    z-index: 10;
+    top: 72px;
+    z-index: 9;
     background: var(--bg);
     padding: 1.2rem 1.5rem 1rem;
     margin: 0 -1.5rem;
     border-bottom: 1px solid var(--border);
-    transition: padding 0.3s ease;
   }
+  .ws-header .ws-full { transition: opacity 0.25s ease, max-height 0.3s ease; max-height: 300px; opacity: 1; overflow: hidden; }
   .ws-header .ws-compact {
-    display: none;
     font-size: 0.75rem;
     color: var(--muted);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-height: 0;
+    opacity: 0;
+    transition: opacity 0.25s ease, max-height 0.3s ease;
   }
   .ws-header .ws-compact .num {
     color: var(--text);
@@ -226,8 +228,8 @@
     font-family: 'JetBrains Mono', monospace;
   }
   .ws-header.compact { padding: 0.5rem 1.5rem; }
-  .ws-header.compact .ws-full { display: none; }
-  .ws-header.compact .ws-compact { display: block; }
+  .ws-header.compact .ws-full { max-height: 0; opacity: 0; }
+  .ws-header.compact .ws-compact { max-height: 40px; opacity: 1; }
 
   /* ── Stats row ── */
   .stats-row {
