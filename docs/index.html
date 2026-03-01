@@ -200,37 +200,6 @@
   a.w-card .arrow { color: transparent; font-size: 0.85rem; transition: color 0.2s; margin-top: 8px; display: block; }
   a.w-card:hover .arrow { color: var(--primary); }
 
-  /* ── Workshop header (morph) ── */
-  .ws-header {
-    position: sticky;
-    top: 72px;
-    z-index: 9;
-    background: var(--bg);
-    padding: 1.2rem 1.5rem 1rem;
-    margin: 0 -1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .ws-header .ws-full { transition: opacity 0.25s ease, max-height 0.3s ease; max-height: 500px; opacity: 1; overflow: hidden; }
-  .ws-header .ws-compact {
-    font-size: 0.75rem;
-    color: var(--muted);
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-height: 0;
-    opacity: 0;
-    transition: opacity 0.25s ease, max-height 0.3s ease;
-  }
-  .ws-header .ws-compact .num {
-    color: var(--text);
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .ws-header.compact { padding: 0.5rem 1.5rem; }
-  .ws-header.compact .ws-full { max-height: 0; opacity: 0; }
-  .ws-header.compact .ws-compact { max-height: 40px; opacity: 1; }
-
   /* ── Stats row ── */
   .stats-row {
     display: flex;
@@ -728,32 +697,25 @@
 <!-- ── Workshop ── -->
 <section id="workshop" style="border-top:1px solid var(--border)">
   <div class="section-inner">
-    <div class="ws-header" id="ws-header">
-      <div class="ws-full">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.8rem">
-          <span style="font-size:1.8rem">🎓</span>
-          <div>
-            <p style="color:var(--primary);font-size:0.7rem;font-weight:600;letter-spacing:0.1em">PSRU WORKSHOP</p>
-            <h2 style="font-size:1.3rem;font-weight:700">AI-Native Engineering</h2>
-          </div>
-          <span style="color:var(--muted);font-size:0.75rem;margin-left:auto">28 ก.พ. – 1 มี.ค. 2569</span>
+    <div style="margin-bottom:2rem">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.8rem">
+        <span style="font-size:1.8rem">🎓</span>
+        <div>
+          <p style="color:var(--primary);font-size:0.7rem;font-weight:600;letter-spacing:0.1em">PSRU WORKSHOP</p>
+          <h2 style="font-size:1.3rem;font-weight:700">AI-Native Engineering</h2>
         </div>
-        <div class="stats-row" style="margin:0.5rem 0;gap:1rem">
-          <div class="stat-item"><div class="num" style="font-size:1.5rem">47</div><div class="label">Portfolios</div></div>
-          <div class="stat-item"><div class="num" style="font-size:1.5rem">109</div><div class="label">Student Apps</div></div>
-          <div class="stat-item"><div class="num" style="font-size:1.5rem">12</div><div class="label">Live Landings</div></div>
-          <div class="stat-item"><div class="num" style="font-size:1.5rem">14</div><div class="label">Senior Projects</div></div>
-          <div class="stat-item"><div class="num" style="font-size:1.5rem">182</div><div class="label">Total</div></div>
-        </div>
-        <div style="text-align:center;margin-top:0.8rem">
-          <a href="report.html" class="btn btn-primary" style="font-size:0.8rem;padding:8px 20px">📊 Report</a>
-          <a href="https://www.facebook.com/groups/887734280258481" class="btn btn-ghost" style="font-size:0.75rem;padding:6px 16px;margin-left:6px" target="_blank">📘 Facebook</a>
-        </div>
+        <span style="color:var(--muted);font-size:0.75rem;margin-left:auto">28 ก.พ. – 1 มี.ค. 2569</span>
       </div>
-      <div class="ws-compact">
-        🎓 <span class="num">47</span> Portfolios · <span class="num">109</span> Apps · <span class="num">12</span> Landings · <span class="num">14</span> Projects · <span class="num">182</span> Total
-        <a href="report.html" style="color:var(--primary);text-decoration:none;margin-left:8px">📊</a>
-        <a href="https://www.facebook.com/groups/887734280258481" target="_blank" style="color:var(--muted);text-decoration:none;margin-left:4px">📘</a>
+      <div class="stats-row" style="margin:0.5rem 0;gap:1rem">
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">47</div><div class="label">Portfolios</div></div>
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">109</div><div class="label">Student Apps</div></div>
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">12</div><div class="label">Live Landings</div></div>
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">14</div><div class="label">Senior Projects</div></div>
+        <div class="stat-item"><div class="num" style="font-size:1.5rem">182</div><div class="label">Total</div></div>
+      </div>
+      <div style="text-align:center;margin-top:0.8rem">
+        <a href="report.html" class="btn btn-primary" style="font-size:0.8rem;padding:8px 20px">📊 Report</a>
+        <a href="https://www.facebook.com/groups/887734280258481" class="btn btn-ghost" style="font-size:0.75rem;padding:6px 16px;margin-left:6px" target="_blank">📘 Facebook</a>
       </div>
     </div>
 
@@ -1319,14 +1281,6 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   }, { threshold: 0.3 });
   sections.forEach(s => { if (s) spy.observe(s); });
 
-  // Morph workshop header to compact on scroll
-  var wsH = document.getElementById('ws-header');
-  if (wsH) {
-    var wsTop = wsH.offsetTop;
-    window.addEventListener('scroll', function() {
-      wsH.classList.toggle('compact', window.scrollY > wsTop + 120);
-    }, { passive: true });
-  }
 })();
 </script>
 </body>
