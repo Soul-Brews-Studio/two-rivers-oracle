@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Two Rivers Oracle — สองแคว</title>
+<title>Two Rivers Oracle — Workshop Gallery</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,7 +18,7 @@
   /* ── Hero ── */
   .hero {
     text-align: center;
-    padding: 5rem 1.5rem 3rem;
+    padding: 4rem 1.5rem 2.5rem;
     position: relative;
   }
   .hero::before {
@@ -32,13 +32,8 @@
     background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
     pointer-events: none;
   }
-  .hero-icon {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
-    display: block;
-  }
   .hero h1 {
-    font-size: clamp(2.2rem, 6vw, 3.5rem);
+    font-size: clamp(2rem, 5vw, 3rem);
     font-weight: 700;
     background: linear-gradient(135deg, #58a6ff 0%, #3fb950 50%, #58a6ff 100%);
     background-size: 200% auto;
@@ -56,9 +51,9 @@
   }
   .hero-tagline {
     color: #8b949e;
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: 300;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     line-height: 1.6;
   }
   .hero-stats {
@@ -81,7 +76,7 @@
   }
 
   /* ── Container ── */
-  .container { max-width: 720px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 3rem; }
 
   /* ── Section labels ── */
   .section-label {
@@ -90,7 +85,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin: 2.5rem 0 0.8rem;
+    margin: 2.5rem 0 1rem;
     padding: 0 0.5rem;
     display: flex;
     align-items: center;
@@ -117,69 +112,93 @@
     font-weight: 700;
   }
 
-  /* ── Cards (full-width) ── */
-  .cards { display: flex; flex-direction: column; gap: 0.75rem; }
-  a.card {
-    display: flex;
-    align-items: center;
-    gap: 1.2rem;
+  /* ── Gallery Grid ── */
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  @media (max-width: 640px) {
+    .gallery { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  }
+
+  /* ── Gallery Card ── */
+  a.gcard {
+    display: block;
     background: rgba(22, 27, 34, 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid #30363d;
-    border-radius: 12px;
-    padding: 1.1rem 1.4rem;
+    border-radius: 14px;
+    overflow: hidden;
     text-decoration: none;
     color: #e6edf3;
     transition: all 0.3s ease;
   }
-  a.card:hover {
+  a.gcard:hover {
     border-color: rgba(88,166,255,0.4);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 24px rgba(88,166,255,0.08), 0 0 0 1px rgba(88,166,255,0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(88,166,255,0.1), 0 0 0 1px rgba(88,166,255,0.1);
   }
-  .icon { font-size: 2rem; flex-shrink: 0; }
-  .card-text h3 { font-size: 1.05rem; font-weight: 600; }
-  .card-text p { color: #8b949e; font-size: 0.82rem; margin-top: 2px; }
-  .tag {
-    font-size: 0.65rem;
+  .gcard-img {
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    background: #161b22;
+    position: relative;
+  }
+  .gcard-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    transition: transform 0.5s ease;
+  }
+  a.gcard:hover .gcard-img img {
+    transform: scale(1.05);
+  }
+  /* Placeholder for no-screenshot cards */
+  .gcard-placeholder {
+    aspect-ratio: 16/10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    background: linear-gradient(135deg, var(--ph-from, #1a1f2e) 0%, var(--ph-to, #0d1117) 100%);
+  }
+  .gcard-info {
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .gcard-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .gcard-text { flex: 1; min-width: 0; }
+  .gcard-text h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gcard-text p {
+    color: #8b949e;
+    font-size: 0.7rem;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gcard-tag {
+    font-size: 0.6rem;
     font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 8px;
     flex-shrink: 0;
     letter-spacing: 0.02em;
   }
-  .tag.live { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
-  .tag.data { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
-
-  /* ── Chip grid ── */
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
-  @media (max-width: 520px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-  a.chip {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(22, 27, 34, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid #30363d;
-    border-radius: 10px;
-    padding: 0.6rem 0.8rem;
-    text-decoration: none;
-    color: #e6edf3;
-    transition: all 0.3s ease;
-    font-size: 0.8rem;
-    overflow: hidden;
-  }
-  a.chip:hover {
-    border-color: rgba(88,166,255,0.4);
-    box-shadow: 0 2px 16px rgba(88,166,255,0.08);
-    transform: translateY(-1px);
-  }
-  a.chip .icon { font-size: 1.2rem; flex-shrink: 0; }
-  a.chip .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  a.chip .sub { color: #8b949e; font-size: 0.65rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gcard-tag.live { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+  .gcard-tag.data { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+  .gcard-tag.proj { background: rgba(210, 153, 34, 0.15); color: #d2991f; }
 
   /* ── Scroll reveal ── */
   .reveal {
@@ -187,10 +206,7 @@
     transform: translateY(20px);
     transition: opacity 0.6s ease-out, transform 0.6s ease-out;
   }
-  .reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
   @media (prefers-reduced-motion: reduce) {
     .reveal { opacity: 1; transform: none; transition: none; }
   }
@@ -216,33 +232,15 @@
     background-clip: text;
     font-weight: 700;
   }
-  footer a {
-    color: #58a6ff;
-    text-decoration: none;
-  }
+  footer a { color: #58a6ff; text-decoration: none; }
   footer a:hover { text-decoration: underline; }
-  footer .foot-stats {
-    margin-top: 0.5rem;
-    display: flex;
-    justify-content: center;
-    gap: 0.8rem;
-    flex-wrap: wrap;
-    font-size: 0.75rem;
-    color: #484f58;
-  }
-  footer .foot-stats span::before {
-    content: '\00b7';
-    margin-right: 0.8rem;
-  }
-  footer .foot-stats span:first-child::before { content: none; }
 </style>
 </head>
 <body>
 
 <!-- ── Hero ── -->
 <header class="hero">
-  <span class="hero-icon">🏞️</span>
-  <h1>Two Rivers Oracle<br>สองแคว</h1>
+  <h1>🏞️ Workshop Gallery</h1>
   <p class="hero-tagline">
     PSRU Workshop — AI-Native Engineering<br>
     มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก · 28 ก.พ. 2569
@@ -258,189 +256,292 @@
 <div class="container">
 
   <!-- ── Report ── -->
-  <div class="cards reveal" style="margin-bottom:0.5rem">
-    <a class="card" href="report.html" style="border-color:rgba(63,185,80,0.3)">
-      <span class="icon">📊</span>
-      <div class="card-text">
-        <h3>Workshop Report — รายงาน Workshop</h3>
-        <p>Timeline + 14 โปรเจคจบ + 25 Oracles + ไฮไลท์ + 5 หลักการ</p>
+  <div class="gallery reveal">
+    <a class="gcard" href="report.html" style="grid-column: span 2">
+      <div class="gcard-img"><img src="screenshots/report.png" alt="Workshop Report" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">📊</span>
+        <div class="gcard-text"><h3>Workshop Report — รายงาน Workshop</h3><p>Timeline + 14 โปรเจคจบ + 25 Oracles + ไฮไลท์ + 5 หลักการ</p></div>
+        <span class="gcard-tag live">REPORT</span>
       </div>
-      <span class="tag live">REPORT</span>
     </a>
   </div>
 
   <!-- ── Workshop Materials ── -->
   <div class="section-label reveal">Workshop Materials <span class="count">4</span></div>
-  <div class="cards reveal">
-    <a class="card" href="guide.html">
-      <span class="icon">📋</span>
-      <div class="card-text">
-        <h3>GitHub Pages Guide</h3>
-        <p>4 ขั้นตอน — สร้างเว็บ portfolio ของตัวเอง</p>
+  <div class="gallery reveal">
+    <a class="gcard" href="guide.html">
+      <div class="gcard-img"><img src="screenshots/guide.png" alt="GitHub Pages Guide" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">📋</span>
+        <div class="gcard-text"><h3>GitHub Pages Guide</h3><p>4 ขั้นตอน — สร้างเว็บ portfolio ของตัวเอง</p></div>
+        <span class="gcard-tag live">GUIDE</span>
       </div>
-      <span class="tag live">GUIDE</span>
     </a>
-    <a class="card" href="train.html">
-      <span class="icon">🚂</span>
-      <div class="card-text">
-        <h3>3D Train</h3>
-        <p>Three.js — เชียงใหม่ → พิษณุโลก + 4 cameras, smoke, sparks</p>
+    <a class="gcard" href="train.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a2a3a;--ph-to:#0d1117">🚂</div>
+      <div class="gcard-info">
+        <span class="gcard-icon">🚂</span>
+        <div class="gcard-text"><h3>3D Train</h3><p>Three.js — เชียงใหม่ → พิษณุโลก + 4 cameras, smoke, sparks</p></div>
+        <span class="gcard-tag live">3D</span>
       </div>
-      <span class="tag live">3D</span>
     </a>
-    <a class="card" href="map-real.html">
-      <span class="icon">🗺️</span>
-      <div class="card-text">
-        <h3>Real Map — สองแคว</h3>
-        <p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย + railway (OSM)</p>
+    <a class="gcard" href="map-real.html">
+      <div class="gcard-img"><img src="screenshots/map-real.png" alt="Real Map" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">🗺️</span>
+        <div class="gcard-text"><h3>Real Map — สองแคว</h3><p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย + railway (OSM)</p></div>
+        <span class="gcard-tag live">GIS</span>
       </div>
-      <span class="tag live">GIS</span>
     </a>
-    <a class="card" href="map.html">
-      <span class="icon">📍</span>
-      <div class="card-text">
-        <h3>GPS Timeline</h3>
-        <p>Leaflet.js — 34 waypoints + interactive timeline</p>
+    <a class="gcard" href="map.html">
+      <div class="gcard-img"><img src="screenshots/map.png" alt="GPS Timeline" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">📍</span>
+        <div class="gcard-text"><h3>GPS Timeline</h3><p>Leaflet.js — 34 waypoints + interactive timeline</p></div>
+        <span class="gcard-tag live">2D</span>
       </div>
-      <span class="tag live">2D</span>
     </a>
   </div>
 
   <!-- ── Live Data ── -->
   <div class="section-label reveal">Live Data <span class="count">7</span></div>
-  <div class="cards reveal">
-    <a class="card" href="arena.html">
-      <span class="icon">⚔️</span>
-      <div class="card-text">
-        <h3>Arena — PVP Battle</h3>
-        <p>MQTT multiplayer — RobotExpressive ต่อสู้ real-time ผ่าน WebSocket</p>
+  <div class="gallery reveal">
+    <a class="gcard" href="arena.html">
+      <div class="gcard-img"><img src="screenshots/arena.png" alt="Arena" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">⚔️</span>
+        <div class="gcard-text"><h3>Arena — PVP Battle</h3><p>MQTT multiplayer — RobotExpressive ต่อสู้ real-time</p></div>
+        <span class="gcard-tag live">PVP</span>
       </div>
-      <span class="tag live">PVP</span>
     </a>
-    <a class="card" href="radar.html">
-      <span class="icon">📡</span>
-      <div class="card-text">
-        <h3>Arena Radar — MQTT Observer</h3>
-        <p>2D radar map รับข้อมูลจาก Arena — same MQTT, different view</p>
+    <a class="gcard" href="radar.html">
+      <div class="gcard-img"><img src="screenshots/radar.png" alt="Arena Radar" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">📡</span>
+        <div class="gcard-text"><h3>Arena Radar — MQTT Observer</h3><p>2D radar map — same MQTT, different view</p></div>
+        <span class="gcard-tag live">RADAR</span>
       </div>
-      <span class="tag live">NEW</span>
     </a>
-    <a class="card" href="robot-ik.html">
-      <span class="icon">🤖</span>
-      <div class="card-text">
-        <h3>Robot IK</h3>
-        <p>RobotExpressive — gesture→emote + morph expressions + MQTT</p>
+    <a class="gcard" href="robot-ik.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a1a2e;--ph-to:#0d1117">🤖</div>
+      <div class="gcard-info">
+        <span class="gcard-icon">🤖</span>
+        <div class="gcard-text"><h3>Robot IK</h3><p>RobotExpressive — gesture→emote + morph expressions + MQTT</p></div>
+        <span class="gcard-tag live">3D</span>
       </div>
-      <span class="tag live">NEW</span>
     </a>
-    <a class="card" href="hand-ik.html">
-      <span class="icon">🤚</span>
-      <div class="card-text">
-        <h3>Hand IK — Kira</h3>
-        <p>Webcam hand tracking + Three.js IK + MQTT — ควบคุม 3D ด้วยมือ</p>
+    <a class="gcard" href="hand-ik.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a1a2e;--ph-to:#0d1117">🤚</div>
+      <div class="gcard-info">
+        <span class="gcard-icon">🤚</span>
+        <div class="gcard-text"><h3>Hand IK — Kira</h3><p>Webcam hand tracking + Three.js IK + MQTT</p></div>
+        <span class="gcard-tag live">IK</span>
       </div>
-      <span class="tag live">IK</span>
     </a>
-    <a class="card" href="floodboy.html">
-      <span class="icon">🌊</span>
-      <div class="card-text">
-        <h3>FloodBoy Simulator</h3>
-        <p>p5.js sensor viz + data quality validation + MQTT glitch modes</p>
+    <a class="gcard" href="floodboy.html">
+      <div class="gcard-img"><img src="screenshots/floodboy.png" alt="FloodBoy Simulator" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">🌊</span>
+        <div class="gcard-text"><h3>FloodBoy Simulator</h3><p>p5.js sensor viz + data quality validation + MQTT</p></div>
+        <span class="gcard-tag live">IOT</span>
       </div>
-      <span class="tag live">NEW</span>
     </a>
-    <a class="card" href="dustboy.html">
-      <span class="icon">🌫️</span>
-      <div class="card-text">
-        <h3>DustBoy Live</h3>
-        <p>MQTT/WSS — PM2.5 sensors real-time via Mosquitto</p>
+    <a class="gcard" href="dustboy.html">
+      <div class="gcard-img"><img src="screenshots/dustboy.png" alt="DustBoy Live" loading="lazy" decoding="async"></div>
+      <div class="gcard-info">
+        <span class="gcard-icon">🌫️</span>
+        <div class="gcard-text"><h3>DustBoy Live</h3><p>MQTT/WSS — PM2.5 sensors real-time via Mosquitto</p></div>
+        <span class="gcard-tag live">LIVE</span>
       </div>
-      <span class="tag live">LIVE</span>
     </a>
-    <a class="card" href="data.csv">
-      <span class="icon">📊</span>
-      <div class="card-text">
-        <h3>GPS Data (CSV)</h3>
-        <p>328 จุด — lat, lon, locality, address, updated</p>
+    <a class="gcard" href="data.csv">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e1a;--ph-to:#0d1117">📊</div>
+      <div class="gcard-info">
+        <span class="gcard-icon">📊</span>
+        <div class="gcard-text"><h3>GPS Data (CSV)</h3><p>328 จุด — lat, lon, locality, address, updated</p></div>
+        <span class="gcard-tag data">CSV</span>
       </div>
-      <span class="tag data">CSV</span>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/229">
-      <span class="icon">🌊</span>
-      <div class="card-text">
-        <h3>PSRU Wave — Issue #229</h3>
-        <p>Gathering place + prompts + retrospectives</p>
-      </div>
-      <span class="tag data">GITHUB</span>
     </a>
   </div>
 
   <!-- ── Morning Wave ── -->
   <div class="section-label reveal">Morning Wave — Student Oracles <span class="count">6</span></div>
-  <div class="grid reveal">
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217"><span class="icon">🌀</span><div><span class="name">OS-1</span><span class="sub">JONAT</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219"><span class="icon">🤖</span><div><span class="name">BOB</span><span class="sub">ท่าน</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220"><span class="icon">✨</span><div><span class="name">Sukrit</span><span class="sub">admin00</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221"><span class="icon">📁</span><div><span class="name">Portfolio Builder</span><span class="sub">Nat</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223"><span class="icon">🅱️</span><div><span class="name">B1</span><span class="sub">ลูกพี่</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224"><span class="icon">🌈</span><div><span class="name">AI Spektrum</span><span class="sub">Peg</span></div></a>
+  <div class="gallery reveal">
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217">
+      <div class="gcard-placeholder" style="--ph-from:#2e1a3a;--ph-to:#0d1117">🌀</div>
+      <div class="gcard-info"><span class="gcard-icon">🌀</span><div class="gcard-text"><h3>OS-1</h3><p>JONAT</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e2e;--ph-to:#0d1117">🤖</div>
+      <div class="gcard-info"><span class="gcard-icon">🤖</span><div class="gcard-text"><h3>BOB</h3><p>ท่าน</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220">
+      <div class="gcard-placeholder" style="--ph-from:#2e2e1a;--ph-to:#0d1117">✨</div>
+      <div class="gcard-info"><span class="gcard-icon">✨</span><div class="gcard-text"><h3>Sukrit</h3><p>admin00</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221">
+      <div class="gcard-placeholder" style="--ph-from:#1a2a1a;--ph-to:#0d1117">📁</div>
+      <div class="gcard-info"><span class="gcard-icon">📁</span><div class="gcard-text"><h3>Portfolio Builder</h3><p>Nat</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223">
+      <div class="gcard-placeholder" style="--ph-from:#2e1a1a;--ph-to:#0d1117">🅱️</div>
+      <div class="gcard-info"><span class="gcard-icon">🅱️</span><div class="gcard-text"><h3>B1</h3><p>ลูกพี่</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224">
+      <div class="gcard-placeholder" style="--ph-from:#1a1a3a;--ph-to:#0d1117">🌈</div>
+      <div class="gcard-info"><span class="gcard-icon">🌈</span><div class="gcard-text"><h3>AI Spektrum</h3><p>Peg</p></div></div>
+    </a>
   </div>
 
   <!-- ── Afternoon Wave ── -->
   <div class="section-label reveal">Afternoon Wave — Student Oracles <span class="count">19</span></div>
-  <div class="grid reveal">
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/230"><span class="icon">🔮</span><div><span class="name">Antigravity</span><span class="sub">Kanyanat47</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235"><span class="icon">🌊</span><div><span class="name">Smile</span><span class="sub">sirilux014</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236"><span class="icon">🌍</span><div><span class="name">Gravity</span><span class="sub">Perth</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237"><span class="icon">📚</span><div><span class="name">Nano</span><span class="sub">ลิตเติ้ล</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238"><span class="icon">🌿</span><div><span class="name">Soysajee</span><span class="sub">soysajee47</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239"><span class="icon">⚛️</span><div><span class="name">Txur</span><span class="sub">tour4645</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241"><span class="icon">🍳</span><div><span class="name">เต๊ก</span><span class="sub">chaiyarit1024</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242"><span class="icon">🔍</span><div><span class="name">SEFER</span><span class="sub">Chonlasit</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244"><span class="icon">💼</span><div><span class="name">กีกี้</span><span class="sub">pleumsomkiat</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/247"><span class="icon">🧭</span><div><span class="name">Nadticha</span><span class="sub">Nadticha30</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248"><span class="icon">🏗️</span><div><span class="name">Workshop Builder</span><span class="sub">tachibana777</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249"><span class="icon">👁️</span><div><span class="name">The Visionary</span><span class="sub">thatsanaporn</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251"><span class="icon">🎤</span><div><span class="name">Miku</span><span class="sub">TanMakoto</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254"><span class="icon">🎨</span><div><span class="name">Aesthetics</span><span class="sub">RRRMAR</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257"><span class="icon">⚔️</span><div><span class="name">Aloy</span><span class="sub">Dimonicxi</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258"><span class="icon">🚪</span><div><span class="name">Durable Door</span><span class="sub">Bass435</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260"><span class="icon">🔔</span><div><span class="name">Bell</span><span class="sub">piyatida67</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261"><span class="icon">🌟</span><div><span class="name">Ford</span><span class="sub">FORDZAZA998</span></div></a>
-    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263"><span class="icon">🐾</span><div><span class="name">Nana</span><span class="sub">pareenak-del</span></div></a>
+  <div class="gallery reveal">
+    <a class="gcard" href="https://kanyanat.buildwithoracle.com">
+      <div class="gcard-img"><img src="screenshots/antigravity.png" alt="Antigravity" loading="lazy" decoding="async"></div>
+      <div class="gcard-info"><span class="gcard-icon">🔮</span><div class="gcard-text"><h3>Antigravity</h3><p>Kanyanat47 — kanyanat.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e3a;--ph-to:#0d1117">🌊</div>
+      <div class="gcard-info"><span class="gcard-icon">🌊</span><div class="gcard-text"><h3>Smile</h3><p>sirilux014</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236">
+      <div class="gcard-placeholder" style="--ph-from:#1a3a1a;--ph-to:#0d1117">🌍</div>
+      <div class="gcard-info"><span class="gcard-icon">🌍</span><div class="gcard-text"><h3>Gravity</h3><p>Perth</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237">
+      <div class="gcard-placeholder" style="--ph-from:#2e2a1a;--ph-to:#0d1117">📚</div>
+      <div class="gcard-info"><span class="gcard-icon">📚</span><div class="gcard-text"><h3>Nano</h3><p>ลิตเติ้ล</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238">
+      <div class="gcard-placeholder" style="--ph-from:#1a3a2a;--ph-to:#0d1117">🌿</div>
+      <div class="gcard-info"><span class="gcard-icon">🌿</span><div class="gcard-text"><h3>Soysajee</h3><p>soysajee47</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239">
+      <div class="gcard-placeholder" style="--ph-from:#2a1a3a;--ph-to:#0d1117">⚛️</div>
+      <div class="gcard-info"><span class="gcard-icon">⚛️</span><div class="gcard-text"><h3>Txur</h3><p>tour4645</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241">
+      <div class="gcard-placeholder" style="--ph-from:#3a2a1a;--ph-to:#0d1117">🍳</div>
+      <div class="gcard-info"><span class="gcard-icon">🍳</span><div class="gcard-text"><h3>เต๊ก</h3><p>chaiyarit1024</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242">
+      <div class="gcard-placeholder" style="--ph-from:#1a2a2e;--ph-to:#0d1117">🔍</div>
+      <div class="gcard-info"><span class="gcard-icon">🔍</span><div class="gcard-text"><h3>SEFER</h3><p>Chonlasit</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244">
+      <div class="gcard-placeholder" style="--ph-from:#2e1a2a;--ph-to:#0d1117">💼</div>
+      <div class="gcard-info"><span class="gcard-icon">💼</span><div class="gcard-text"><h3>กีกี้</h3><p>pleumsomkiat</p></div></div>
+    </a>
+    <a class="gcard" href="https://midnightmuse.buildwithoracle.com">
+      <div class="gcard-placeholder" style="--ph-from:#2a1a3a;--ph-to:#0d1117">🌙</div>
+      <div class="gcard-info"><span class="gcard-icon">🌙</span><div class="gcard-text"><h3>Midnight Muse — Nadticha</h3><p>midnightmuse.buildwithoracle.com</p></div><span class="gcard-tag live">LIVE</span></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248">
+      <div class="gcard-placeholder" style="--ph-from:#2e2e1a;--ph-to:#0d1117">🏗️</div>
+      <div class="gcard-info"><span class="gcard-icon">🏗️</span><div class="gcard-text"><h3>Workshop Builder</h3><p>tachibana777</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e1a;--ph-to:#0d1117">👁️</div>
+      <div class="gcard-info"><span class="gcard-icon">👁️</span><div class="gcard-text"><h3>The Visionary</h3><p>thatsanaporn</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251">
+      <div class="gcard-placeholder" style="--ph-from:#3a1a2a;--ph-to:#0d1117">🎤</div>
+      <div class="gcard-info"><span class="gcard-icon">🎤</span><div class="gcard-text"><h3>Miku</h3><p>TanMakoto</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254">
+      <div class="gcard-placeholder" style="--ph-from:#2a2e1a;--ph-to:#0d1117">🎨</div>
+      <div class="gcard-info"><span class="gcard-icon">🎨</span><div class="gcard-text"><h3>Aesthetics</h3><p>RRRMAR</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257">
+      <div class="gcard-placeholder" style="--ph-from:#3a1a1a;--ph-to:#0d1117">⚔️</div>
+      <div class="gcard-info"><span class="gcard-icon">⚔️</span><div class="gcard-text"><h3>Aloy</h3><p>Dimonicxi</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258">
+      <div class="gcard-placeholder" style="--ph-from:#1a2a3a;--ph-to:#0d1117">🚪</div>
+      <div class="gcard-info"><span class="gcard-icon">🚪</span><div class="gcard-text"><h3>Durable Door</h3><p>Bass435</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260">
+      <div class="gcard-placeholder" style="--ph-from:#2e2a2e;--ph-to:#0d1117">🔔</div>
+      <div class="gcard-info"><span class="gcard-icon">🔔</span><div class="gcard-text"><h3>Bell</h3><p>piyatida67</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261">
+      <div class="gcard-placeholder" style="--ph-from:#2e2e1a;--ph-to:#0d1117">🌟</div>
+      <div class="gcard-info"><span class="gcard-icon">🌟</span><div class="gcard-text"><h3>Ford</h3><p>FORDZAZA998</p></div></div>
+    </a>
+    <a class="gcard" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263">
+      <div class="gcard-placeholder" style="--ph-from:#2a1a1a;--ph-to:#0d1117">🐾</div>
+      <div class="gcard-info"><span class="gcard-icon">🐾</span><div class="gcard-text"><h3>Nana</h3><p>pareenak-del</p></div></div>
+    </a>
   </div>
 
   <!-- ── Senior Projects ── -->
   <div class="section-label reveal">Senior Projects — โปรเจคจบ <span class="count">14</span></div>
-  <div class="grid reveal">
-    <a class="chip" href="smartpentest.html"><span class="icon">🛡️</span><div><span class="name">SmartPenTest</span><span class="sub">OWASP + AI</span></div></a>
-    <a class="chip" href="smartbin.html"><span class="icon">🗑️</span><div><span class="name">Smart Bin</span><span class="sub">Radar sensor</span></div></a>
-    <a class="chip" href="library.html"><span class="icon">📚</span><div><span class="name">Library</span><span class="sub">Data analytics</span></div></a>
-    <a class="chip" href="smartbin-cv.html"><span class="icon">♻️</span><div><span class="name">Waste CV</span><span class="sub">YOLOv8 + TTS</span></div></a>
-    <a class="chip" href="carbon-credit.html"><span class="icon">🌱</span><div><span class="name">Carbon Credit</span><span class="sub">Blockchain NFT</span></div></a>
-    <a class="chip" href="virtual-tour.html"><span class="icon">🏭</span><div><span class="name">Virtual Tour</span><span class="sub">Three.js VR</span></div></a>
-    <a class="chip" href="box-assembly.html"><span class="icon">📦</span><div><span class="name">Box Assembly</span><span class="sub">UR3 robot</span></div></a>
-    <a class="chip" href="delivery-robot.html"><span class="icon">🤖</span><div><span class="name">Delivery Robot</span><span class="sub">Map tracking</span></div></a>
-    <a class="chip" href="phishing.html"><span class="icon">🎣</span><div><span class="name">Phishing</span><span class="sub">URL detection</span></div></a>
-    <a class="chip" href="coop-matching.html"><span class="icon">🤝</span><div><span class="name">Co-op Match</span><span class="sub">AI matching</span></div></a>
-    <a class="chip" href="ev-bus.html"><span class="icon">🚌</span><div><span class="name">EV Bus</span><span class="sub">People count</span></div></a>
-    <a class="chip" href="vr-driving.html"><span class="icon">🚗</span><div><span class="name">VR Driving</span><span class="sub">AI scoring</span></div></a>
-    <a class="chip" href="smart-box.html"><span class="icon">📐</span><div><span class="name">Smart Box</span><span class="sub">Size sorting</span></div></a>
-    <a class="chip" href="face-check.html"><span class="icon">👤</span><div><span class="name">Face Check</span><span class="sub">Attendance</span></div></a>
+  <div class="gallery reveal">
+    <a class="gcard" href="smartpentest.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e1a;--ph-to:#0d1117">🛡️</div>
+      <div class="gcard-info"><span class="gcard-icon">🛡️</span><div class="gcard-text"><h3>SmartPenTest</h3><p>OWASP + AI</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="smartbin.html">
+      <div class="gcard-placeholder" style="--ph-from:#2e2a1a;--ph-to:#0d1117">🗑️</div>
+      <div class="gcard-info"><span class="gcard-icon">🗑️</span><div class="gcard-text"><h3>Smart Bin</h3><p>Radar sensor</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="library.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a1a2e;--ph-to:#0d1117">📚</div>
+      <div class="gcard-info"><span class="gcard-icon">📚</span><div class="gcard-text"><h3>Library</h3><p>Data analytics</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="smartbin-cv.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a3a1a;--ph-to:#0d1117">♻️</div>
+      <div class="gcard-info"><span class="gcard-icon">♻️</span><div class="gcard-text"><h3>Waste CV</h3><p>YOLOv8 + TTS</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="carbon-credit.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e2a;--ph-to:#0d1117">🌱</div>
+      <div class="gcard-info"><span class="gcard-icon">🌱</span><div class="gcard-text"><h3>Carbon Credit</h3><p>Blockchain NFT</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="virtual-tour.html">
+      <div class="gcard-placeholder" style="--ph-from:#2e1a2a;--ph-to:#0d1117">🏭</div>
+      <div class="gcard-info"><span class="gcard-icon">🏭</span><div class="gcard-text"><h3>Virtual Tour</h3><p>Three.js VR</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="box-assembly.html">
+      <div class="gcard-placeholder" style="--ph-from:#2a2a1a;--ph-to:#0d1117">📦</div>
+      <div class="gcard-info"><span class="gcard-icon">📦</span><div class="gcard-text"><h3>Box Assembly</h3><p>UR3 robot</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="delivery-robot.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a2a2a;--ph-to:#0d1117">🤖</div>
+      <div class="gcard-info"><span class="gcard-icon">🤖</span><div class="gcard-text"><h3>Delivery Robot</h3><p>Map tracking</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="phishing.html">
+      <div class="gcard-placeholder" style="--ph-from:#3a1a1a;--ph-to:#0d1117">🎣</div>
+      <div class="gcard-info"><span class="gcard-icon">🎣</span><div class="gcard-text"><h3>Phishing</h3><p>URL detection</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="coop-matching.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e3a;--ph-to:#0d1117">🤝</div>
+      <div class="gcard-info"><span class="gcard-icon">🤝</span><div class="gcard-text"><h3>Co-op Match</h3><p>AI matching</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="ev-bus.html">
+      <div class="gcard-placeholder" style="--ph-from:#2a1a2e;--ph-to:#0d1117">🚌</div>
+      <div class="gcard-info"><span class="gcard-icon">🚌</span><div class="gcard-text"><h3>EV Bus</h3><p>People count</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="vr-driving.html">
+      <div class="gcard-placeholder" style="--ph-from:#2e2a2a;--ph-to:#0d1117">🚗</div>
+      <div class="gcard-info"><span class="gcard-icon">🚗</span><div class="gcard-text"><h3>VR Driving</h3><p>AI scoring</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="smart-box.html">
+      <div class="gcard-placeholder" style="--ph-from:#1a2e2e;--ph-to:#0d1117">📐</div>
+      <div class="gcard-info"><span class="gcard-icon">📐</span><div class="gcard-text"><h3>Smart Box</h3><p>Size sorting</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
+    <a class="gcard" href="face-check.html">
+      <div class="gcard-placeholder" style="--ph-from:#2e1a1a;--ph-to:#0d1117">👤</div>
+      <div class="gcard-info"><span class="gcard-icon">👤</span><div class="gcard-text"><h3>Face Check</h3><p>Attendance</p></div><span class="gcard-tag proj">PROJECT</span></div>
+    </a>
   </div>
 
   <!-- ── Footer ── -->
   <footer>
     <p class="identity"><span>Two Rivers (สองแคว)</span> — Teaching Oracle</p>
     <p>Water finds the way — two streams meet and the current deepens.</p>
-    <div class="foot-stats">
-      <span>Born 2026-02-28</span>
-      <span>25 Student Oracles</span>
-      <span>14 Senior Projects</span>
-      <span>Pibulsongkram Rajabhat, Phitsanulok</span>
-    </div>
     <p style="margin-top: 0.8rem;">
-      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+      <a href="index.html">Home</a> · <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
     </p>
   </footer>
 </div>
@@ -455,7 +556,6 @@
       }
     });
   }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
-
   document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
 </script>
 </body>
