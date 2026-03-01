@@ -530,6 +530,48 @@
     font-size: 3rem;
     background: linear-gradient(135deg, var(--ph-from, #1a1f2e) 0%, var(--ph-to, #0d1117) 100%);
   }
+  /* ── Rich project placeholders ── */
+  .gcard-ph-rich {
+    aspect-ratio: 16/10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, var(--ph-from, #1a1f2e) 0%, var(--ph-to, #0d1117) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .gcard-ph-rich::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 30%, var(--ph-accent, rgba(88,166,255,0.08)) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, var(--ph-accent, rgba(88,166,255,0.06)) 0%, transparent 50%);
+  }
+  .gcard-ph-rich::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .gcard-ph-rich .ph-emoji {
+    font-size: 3.2rem;
+    filter: drop-shadow(0 0 20px var(--ph-glow, rgba(88,166,255,0.3)));
+    z-index: 1;
+    transition: transform 0.4s ease;
+  }
+  a.gcard:hover .gcard-ph-rich .ph-emoji { transform: scale(1.15); }
+  .gcard-ph-rich .ph-tech {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--ph-accent, rgba(88,166,255,0.5));
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    z-index: 1;
+  }
   .gcard-info {
     padding: 0.8rem 1rem;
     display: flex;
@@ -774,59 +816,59 @@
     <div class="section-label reveal">Senior Projects — โปรเจคจบ <span class="count">14</span></div>
     <div class="gallery reveal">
       <a class="gcard" href="smartpentest.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a2e1a;--ph-to:#0d1117">🛡️</div>
+        <div class="gcard-ph-rich" style="--ph-from:#1a2e1a;--ph-to:#0d1117;--ph-accent:rgba(63,185,80,0.12);--ph-glow:rgba(63,185,80,0.4)"><span class="ph-emoji">🛡️</span><span class="ph-tech">OWASP · AI · Security</span></div>
         <div class="gcard-info"><span class="gcard-icon">🛡️</span><div class="gcard-text"><h3>SmartPenTest</h3><p>OWASP + AI</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="smartbin.html">
-        <div class="gcard-placeholder" style="--ph-from:#2e2a1a;--ph-to:#0d1117">🗑️</div>
+        <div class="gcard-img"><img src="screenshots/smartbin.png" alt="Smart Bin" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🗑️</span><div class="gcard-text"><h3>Smart Bin</h3><p>Radar sensor</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="library.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a1a2e;--ph-to:#0d1117">📚</div>
+        <div class="gcard-img"><img src="screenshots/library.png" alt="Library" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">📚</span><div class="gcard-text"><h3>Library</h3><p>Data analytics</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="smartbin-cv.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a3a1a;--ph-to:#0d1117">♻️</div>
+        <div class="gcard-img"><img src="screenshots/smartbin-cv.png" alt="Waste CV" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">♻️</span><div class="gcard-text"><h3>Waste CV</h3><p>YOLOv8 + TTS</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="carbon-credit.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a2e2a;--ph-to:#0d1117">🌱</div>
+        <div class="gcard-img"><img src="screenshots/carbon-credit.png" alt="Carbon Credit" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🌱</span><div class="gcard-text"><h3>Carbon Credit</h3><p>Blockchain NFT</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="virtual-tour.html">
-        <div class="gcard-placeholder" style="--ph-from:#2e1a2a;--ph-to:#0d1117">🏭</div>
+        <div class="gcard-img"><img src="screenshots/virtual-tour.png" alt="Virtual Tour" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🏭</span><div class="gcard-text"><h3>Virtual Tour</h3><p>Three.js VR</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="box-assembly.html">
-        <div class="gcard-placeholder" style="--ph-from:#2a2a1a;--ph-to:#0d1117">📦</div>
+        <div class="gcard-img"><img src="screenshots/box-assembly.png" alt="Box Assembly" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">📦</span><div class="gcard-text"><h3>Box Assembly</h3><p>UR3 robot</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="delivery-robot.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a2a2a;--ph-to:#0d1117">🤖</div>
+        <div class="gcard-img"><img src="screenshots/delivery-robot.png" alt="Delivery Robot" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🤖</span><div class="gcard-text"><h3>Delivery Robot</h3><p>Map tracking</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="phishing.html">
-        <div class="gcard-placeholder" style="--ph-from:#3a1a1a;--ph-to:#0d1117">🎣</div>
+        <div class="gcard-img"><img src="screenshots/phishing.png" alt="Phishing" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🎣</span><div class="gcard-text"><h3>Phishing</h3><p>URL detection</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="coop-matching.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a2e3a;--ph-to:#0d1117">🤝</div>
+        <div class="gcard-img"><img src="screenshots/coop-matching.png" alt="Co-op Match" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🤝</span><div class="gcard-text"><h3>Co-op Match</h3><p>AI matching</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="ev-bus.html">
-        <div class="gcard-placeholder" style="--ph-from:#2a1a2e;--ph-to:#0d1117">🚌</div>
+        <div class="gcard-img"><img src="screenshots/ev-bus.png" alt="EV Bus" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🚌</span><div class="gcard-text"><h3>EV Bus</h3><p>People count</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="vr-driving.html">
-        <div class="gcard-placeholder" style="--ph-from:#2e2a2a;--ph-to:#0d1117">🚗</div>
+        <div class="gcard-img"><img src="screenshots/vr-driving.png" alt="VR Driving" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">🚗</span><div class="gcard-text"><h3>VR Driving</h3><p>AI scoring</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="smart-box.html">
-        <div class="gcard-placeholder" style="--ph-from:#1a2e2e;--ph-to:#0d1117">📐</div>
+        <div class="gcard-img"><img src="screenshots/smart-box.png" alt="Smart Box" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">📐</span><div class="gcard-text"><h3>Smart Box</h3><p>Size sorting</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
       <a class="gcard" href="face-check.html">
-        <div class="gcard-placeholder" style="--ph-from:#2e1a1a;--ph-to:#0d1117">👤</div>
+        <div class="gcard-img"><img src="screenshots/face-check.png" alt="Face Check" loading="lazy" decoding="async"></div>
         <div class="gcard-info"><span class="gcard-icon">👤</span><div class="gcard-text"><h3>Face Check</h3><p>Attendance</p></div><span class="gcard-tag proj">PROJECT</span></div>
       </a>
     </div>
