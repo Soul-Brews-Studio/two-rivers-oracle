@@ -244,6 +244,92 @@
   }
   .principle p { color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
 
+  /* ── Full-width cards ── */
+  .cards { display: flex; flex-direction: column; gap: 0.75rem; }
+  a.card {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.4rem;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.3s ease;
+  }
+  a.card:hover {
+    border-color: rgba(88,166,255,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(88,166,255,0.08);
+  }
+  .card .icon { font-size: 2rem; flex-shrink: 0; }
+  .card-text h3 { font-size: 1.05rem; font-weight: 600; }
+  .card-text p { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+  .card .tag {
+    font-size: 0.65rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+    margin-left: auto; flex-shrink: 0;
+  }
+  .tag.live { background: rgba(63,185,80,0.15); color: var(--secondary); }
+  .tag.data { background: rgba(88,166,255,0.15); color: var(--primary); }
+
+  /* ── Sub-section labels ── */
+  .sub-label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 2.5rem 0 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .sub-label::before, .sub-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border));
+  }
+  .sub-label::after { background: linear-gradient(90deg, var(--border), transparent); }
+  .sub-label .count {
+    font-size: 0.65rem;
+    background: rgba(88,166,255,0.12);
+    color: var(--primary);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  /* ── Chip grid ── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+  @media (max-width: 520px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  a.chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.3s ease;
+    font-size: 0.8rem;
+    overflow: hidden;
+  }
+  a.chip:hover {
+    border-color: rgba(88,166,255,0.4);
+    transform: translateY(-1px);
+  }
+  a.chip .c-icon { font-size: 1.2rem; flex-shrink: 0; }
+  a.chip .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  a.chip .sub { color: var(--muted); font-size: 0.65rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   /* ── Family ── */
   .family-grid {
     display: grid;
@@ -291,6 +377,111 @@
     font-size: 0.8rem;
   }
 
+  /* ── Origin story ── */
+  .origin-text {
+    max-width: 640px;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.8;
+    margin-bottom: 2rem;
+  }
+  .origin-text em { color: var(--primary); font-style: normal; font-weight: 600; }
+  .origin-quote {
+    border-left: 3px solid var(--primary);
+    padding: 16px 24px;
+    background: var(--surface);
+    border-radius: 0 12px 12px 0;
+    color: var(--text);
+    font-size: 1.1rem;
+    font-style: italic;
+    max-width: 600px;
+  }
+
+  /* ── Journey route ── */
+  .route {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 2.5rem 0;
+    justify-content: center;
+  }
+  .route-stop {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .route-dot {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .route-dot.start { background: rgba(88,166,255,0.2); border: 2px solid var(--primary); }
+  .route-dot.end { background: rgba(63,185,80,0.2); border: 2px solid var(--secondary); }
+  .route-dot.mid { background: var(--surface); border: 1px solid var(--border); }
+  .route-dot .r-label {
+    position: absolute;
+    top: 54px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: var(--dim);
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .route-line {
+    width: 32px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    opacity: 0.3;
+    flex-shrink: 0;
+  }
+  @media (max-width: 640px) {
+    .route-line { width: 16px; }
+    .route-dot { width: 36px; height: 36px; font-size: 1rem; }
+    .route-dot .r-label { font-size: 0.55rem; top: 42px; }
+  }
+
+  /* ── Map embed ── */
+  .map-frame {
+    width: 100%;
+    height: 450px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 2rem 0;
+  }
+  .map-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  @media (max-width: 640px) { .map-frame { height: 320px; } }
+
+  /* ── Rivers info ── */
+  .rivers-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 2rem 0;
+  }
+  @media (max-width: 640px) { .rivers-row { grid-template-columns: 1fr; } }
+  .river-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .river-card h4 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+  .river-card h4 .river-color { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+  .river-card p { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+
   /* ── Reveal ── */
   .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
   .reveal.visible { opacity: 1; transform: translateY(0); }
@@ -307,6 +498,8 @@
     <span class="sub">Two Rivers</span>
   </a>
   <div class="links">
+    <a href="#origin">Origin</a>
+    <a href="#journey">Journey</a>
     <a href="#workshop">Workshop</a>
     <a href="#philosophy">Philosophy</a>
     <a href="#family">Family</a>
@@ -333,8 +526,96 @@
   </div>
 </section>
 
+<!-- ── Origin ── -->
+<section id="origin" style="border-top:1px solid var(--border)">
+  <div class="section-inner">
+    <div class="section-head reveal">
+      <span class="s-emoji">🌱</span>
+      <div>
+        <p class="s-tag">ORIGIN STORY</p>
+        <h2>กำเนิดสองแคว</h2>
+      </div>
+    </div>
+
+    <div class="origin-text reveal">
+      เกิดบนรถไฟขบวนที่ 8 จากเชียงใหม่ คืนวันที่ 27 กุมภาพันธ์ 2569 ผ่าน 6 จังหวัด — ลำพูน ลำปาง แพร่ อุตรดิตถ์ — ถึงพิษณุโลกตอนเช้า
+    </div>
+    <div class="origin-text reveal">
+      พิษณุโลกคือ <em>เมืองสองแคว</em> — เมืองที่แม่น้ำสองสายมาบรรจบกัน แม่น้ำน่านและแม่น้ำแควน้อย Oracle ที่เกิดที่นี่จึงถูกตั้งชื่อจากแผ่นดินเอง: <em>สองแคว</em> — Two Rivers
+    </div>
+    <div class="origin-text reveal">
+      สองสายน้ำที่บรรจบ = ความรู้ของ AI + ความอยากรู้ของมนุษย์ สองกระแสรวมกัน กระแสก็ลึกขึ้น
+    </div>
+    <div class="origin-quote reveal">
+      "Water finds the way — two streams meet and the current deepens."
+    </div>
+  </div>
+</section>
+
+<!-- ── Journey ── -->
+<section id="journey" style="border-top:1px solid var(--border)">
+  <div class="section-inner">
+    <div class="section-head reveal">
+      <span class="s-emoji">🚂</span>
+      <div>
+        <p class="s-tag">THE JOURNEY</p>
+        <h2>เชียงใหม่ → พิษณุโลก</h2>
+      </div>
+    </div>
+    <p class="reveal" style="color:var(--muted);margin-bottom:1rem;max-width:600px">
+      รถไฟขบวนที่ 8 · 300 กม. · 6 จังหวัด · 34 จุด GPS จากการเดินทางจริง
+    </p>
+
+    <div class="route reveal">
+      <div class="route-stop">
+        <div class="route-dot start">🏔️<span class="r-label">เชียงใหม่</span></div>
+        <div class="route-line"></div>
+      </div>
+      <div class="route-stop">
+        <div class="route-dot mid">🏯<span class="r-label">ลำพูน</span></div>
+        <div class="route-line"></div>
+      </div>
+      <div class="route-stop">
+        <div class="route-dot mid">🏭<span class="r-label">ลำปาง</span></div>
+        <div class="route-line"></div>
+      </div>
+      <div class="route-stop">
+        <div class="route-dot mid">🌲<span class="r-label">แพร่</span></div>
+        <div class="route-line"></div>
+      </div>
+      <div class="route-stop">
+        <div class="route-dot mid">🌾<span class="r-label">อุตรดิตถ์</span></div>
+        <div class="route-line"></div>
+      </div>
+      <div class="route-stop">
+        <div class="route-dot end">🏞️<span class="r-label">พิษณุโลก</span></div>
+      </div>
+    </div>
+
+    <div class="map-frame reveal">
+      <iframe src="map-real.html" loading="lazy" title="Real Map — เชียงใหม่ → พิษณุโลก"></iframe>
+    </div>
+
+    <div class="rivers-row reveal">
+      <div class="river-card">
+        <h4><span class="river-color" style="background:#00e5ff"></span>แม่น้ำน่าน</h4>
+        <p>สายน้ำหลักของพิษณุโลก ไหลจากเหนือลงใต้ผ่านใจกลางเมือง เป็น "แคว" แรกของสองแคว</p>
+      </div>
+      <div class="river-card">
+        <h4><span class="river-color" style="background:#80deea"></span>แม่น้ำแควน้อย</h4>
+        <p>สาขาของแม่น้ำน่าน ไหลมาบรรจบที่พิษณุโลก จุดบรรจบคือ "สองแคว" — ที่มาของชื่อ Oracle</p>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:1rem" class="reveal">
+      <a href="map-real.html" class="btn btn-ghost" style="font-size:0.85rem;padding:10px 24px">🗺️ เปิดแผนที่เต็มจอ</a>
+      <a href="train.html" class="btn btn-ghost" style="font-size:0.85rem;padding:10px 24px;margin-left:8px">🚂 ดู 3D Train</a>
+    </div>
+  </div>
+</section>
+
 <!-- ── Workshop ── -->
-<section id="workshop">
+<section id="workshop" style="border-top:1px solid var(--border)">
   <div class="section-inner">
     <div class="section-head reveal">
       <span class="s-emoji">🎓</span>
@@ -354,43 +635,140 @@
       <div class="stat-item"><div class="num">7</div><div class="label">Live Demos</div></div>
     </div>
 
-    <div class="workshop-grid reveal">
-      <a class="w-card" href="workshop.html">
-        <span class="w-icon">📋</span>
-        <h3>Workshop Portal <span>ALL 50 LINKS</span></h3>
-        <p>ทุก demo, simulator, Oracle — รวมไว้ที่นี่</p>
-        <span class="arrow">→ เปิด Portal</span>
+    <!-- Report -->
+    <div class="cards reveal" style="margin-bottom:0.5rem">
+      <a class="card" href="report.html" style="border-color:rgba(63,185,80,0.3)">
+        <span class="icon">📊</span>
+        <div class="card-text">
+          <h3>Workshop Report — รายงาน Workshop</h3>
+          <p>Timeline + 14 โปรเจคจบ + 25 Oracles + ไฮไลท์ + 5 หลักการ</p>
+        </div>
+        <span class="tag live">REPORT</span>
       </a>
-      <a class="w-card" href="report.html">
-        <span class="w-icon">📊</span>
-        <h3>Workshop Report</h3>
-        <p>สรุปทั้งวัน — timeline, projects, highlights</p>
-        <span class="arrow">→ อ่าน Report</span>
+    </div>
+
+    <!-- Workshop Materials -->
+    <div class="sub-label reveal">Workshop Materials <span class="count">4</span></div>
+    <div class="cards reveal">
+      <a class="card" href="guide.html">
+        <span class="icon">📋</span>
+        <div class="card-text"><h3>GitHub Pages Guide</h3><p>4 ขั้นตอน — สร้างเว็บ portfolio ของตัวเอง</p></div>
+        <span class="tag live">GUIDE</span>
       </a>
-      <a class="w-card" href="arena.html">
-        <span class="w-icon">⚔️</span>
-        <h3>Arena PVP</h3>
-        <p>MQTT multiplayer battle — RobotExpressive real-time</p>
-        <span class="arrow">→ เข้า Arena</span>
+      <a class="card" href="train.html">
+        <span class="icon">🚂</span>
+        <div class="card-text"><h3>3D Train</h3><p>Three.js — เชียงใหม่ → พิษณุโลก + 4 cameras, smoke, sparks</p></div>
+        <span class="tag live">3D</span>
       </a>
-      <a class="w-card" href="radar.html">
-        <span class="w-icon">📡</span>
-        <h3>Radar — MQTT Observer</h3>
-        <p>2D map ดูข้อมูลจาก Arena — same data, different view</p>
-        <span class="arrow">→ เปิด Radar</span>
+      <a class="card" href="map-real.html">
+        <span class="icon">🗺️</span>
+        <div class="card-text"><h3>Real Map — สองแคว</h3><p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย + railway (OSM)</p></div>
+        <span class="tag live">GIS</span>
       </a>
-      <a class="w-card" href="train.html">
-        <span class="w-icon">🚂</span>
-        <h3>3D Train</h3>
-        <p>Three.js เชียงใหม่ → พิษณุโลก + 4 cameras</p>
-        <span class="arrow">→ ขึ้นรถไฟ</span>
+      <a class="card" href="map.html">
+        <span class="icon">📍</span>
+        <div class="card-text"><h3>GPS Timeline</h3><p>Leaflet.js — 34 waypoints + interactive timeline</p></div>
+        <span class="tag live">2D</span>
       </a>
-      <a class="w-card" href="map-real.html">
-        <span class="w-icon">🗺️</span>
-        <h3>Real Map — สองแคว</h3>
-        <p>Province boundaries + แม่น้ำน่าน + แม่น้ำแควน้อย</p>
-        <span class="arrow">→ ดูแผนที่</span>
+    </div>
+
+    <!-- Live Data -->
+    <div class="sub-label reveal">Live Data <span class="count">8</span></div>
+    <div class="cards reveal">
+      <a class="card" href="arena.html">
+        <span class="icon">⚔️</span>
+        <div class="card-text"><h3>Arena — PVP Battle</h3><p>MQTT multiplayer — RobotExpressive ต่อสู้ real-time ผ่าน WebSocket</p></div>
+        <span class="tag live">PVP</span>
       </a>
+      <a class="card" href="radar.html">
+        <span class="icon">📡</span>
+        <div class="card-text"><h3>Arena Radar — MQTT Observer</h3><p>2D radar map รับข้อมูลจาก Arena — same MQTT, different view</p></div>
+        <span class="tag live">NEW</span>
+      </a>
+      <a class="card" href="robot-ik.html">
+        <span class="icon">🤖</span>
+        <div class="card-text"><h3>Robot IK</h3><p>RobotExpressive — gesture→emote + morph expressions + MQTT</p></div>
+        <span class="tag live">NEW</span>
+      </a>
+      <a class="card" href="hand-ik.html">
+        <span class="icon">🤚</span>
+        <div class="card-text"><h3>Hand IK — Kira</h3><p>Webcam hand tracking + Three.js IK + MQTT — ควบคุม 3D ด้วยมือ</p></div>
+        <span class="tag live">IK</span>
+      </a>
+      <a class="card" href="floodboy.html">
+        <span class="icon">🌊</span>
+        <div class="card-text"><h3>FloodBoy Simulator</h3><p>p5.js sensor viz + data quality validation + MQTT glitch modes</p></div>
+        <span class="tag live">NEW</span>
+      </a>
+      <a class="card" href="dustboy.html">
+        <span class="icon">🌫️</span>
+        <div class="card-text"><h3>DustBoy Live</h3><p>MQTT/WSS — PM2.5 sensors real-time via Mosquitto</p></div>
+        <span class="tag live">LIVE</span>
+      </a>
+      <a class="card" href="data.csv">
+        <span class="icon">📊</span>
+        <div class="card-text"><h3>GPS Data (CSV)</h3><p>328 จุด — lat, lon, locality, address, updated</p></div>
+        <span class="tag data">CSV</span>
+      </a>
+      <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/229">
+        <span class="icon">🌊</span>
+        <div class="card-text"><h3>PSRU Wave — Issue #229</h3><p>Gathering place + prompts + retrospectives</p></div>
+        <span class="tag data">GITHUB</span>
+      </a>
+    </div>
+
+    <!-- Morning Wave -->
+    <div class="sub-label reveal">Morning Wave — Student Oracles <span class="count">6</span></div>
+    <div class="grid reveal">
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217"><span class="c-icon">🌀</span><div><span class="name">OS-1</span><span class="sub">JONAT</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219"><span class="c-icon">🤖</span><div><span class="name">BOB</span><span class="sub">ท่าน</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220"><span class="c-icon">✨</span><div><span class="name">Sukrit</span><span class="sub">admin00</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221"><span class="c-icon">📁</span><div><span class="name">Portfolio Builder</span><span class="sub">Nat</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223"><span class="c-icon">🅱️</span><div><span class="name">B1</span><span class="sub">ลูกพี่</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224"><span class="c-icon">🌈</span><div><span class="name">AI Spektrum</span><span class="sub">Peg</span></div></a>
+    </div>
+
+    <!-- Afternoon Wave -->
+    <div class="sub-label reveal">Afternoon Wave — Student Oracles <span class="count">19</span></div>
+    <div class="grid reveal">
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/230"><span class="c-icon">🔮</span><div><span class="name">Antigravity</span><span class="sub">Kanyanat47</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235"><span class="c-icon">🌊</span><div><span class="name">Smile</span><span class="sub">sirilux014</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236"><span class="c-icon">🌍</span><div><span class="name">Gravity</span><span class="sub">Perth</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237"><span class="c-icon">📚</span><div><span class="name">Nano</span><span class="sub">ลิตเติ้ล</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238"><span class="c-icon">🌿</span><div><span class="name">Soysajee</span><span class="sub">soysajee47</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239"><span class="c-icon">⚛️</span><div><span class="name">Txur</span><span class="sub">tour4645</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241"><span class="c-icon">🍳</span><div><span class="name">เต๊ก</span><span class="sub">chaiyarit1024</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242"><span class="c-icon">🔍</span><div><span class="name">SEFER</span><span class="sub">Chonlasit</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244"><span class="c-icon">💼</span><div><span class="name">กีกี้</span><span class="sub">pleumsomkiat</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/247"><span class="c-icon">🧭</span><div><span class="name">Nadticha</span><span class="sub">Nadticha30</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248"><span class="c-icon">🏗️</span><div><span class="name">Workshop Builder</span><span class="sub">tachibana777</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249"><span class="c-icon">👁️</span><div><span class="name">The Visionary</span><span class="sub">thatsanaporn</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251"><span class="c-icon">🎤</span><div><span class="name">Miku</span><span class="sub">TanMakoto</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254"><span class="c-icon">🎨</span><div><span class="name">Aesthetics</span><span class="sub">RRRMAR</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257"><span class="c-icon">⚔️</span><div><span class="name">Aloy</span><span class="sub">Dimonicxi</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258"><span class="c-icon">🚪</span><div><span class="name">Durable Door</span><span class="sub">Bass435</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260"><span class="c-icon">🔔</span><div><span class="name">Bell</span><span class="sub">piyatida67</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261"><span class="c-icon">🌟</span><div><span class="name">Ford</span><span class="sub">FORDZAZA998</span></div></a>
+      <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263"><span class="c-icon">🐾</span><div><span class="name">Nana</span><span class="sub">pareenak-del</span></div></a>
+    </div>
+
+    <!-- Senior Projects -->
+    <div class="sub-label reveal">Senior Projects — โปรเจคจบ <span class="count">14</span></div>
+    <div class="grid reveal">
+      <a class="chip" href="smartpentest.html"><span class="c-icon">🛡️</span><div><span class="name">SmartPenTest</span><span class="sub">OWASP + AI</span></div></a>
+      <a class="chip" href="smartbin.html"><span class="c-icon">🗑️</span><div><span class="name">Smart Bin</span><span class="sub">Radar sensor</span></div></a>
+      <a class="chip" href="library.html"><span class="c-icon">📚</span><div><span class="name">Library</span><span class="sub">Data analytics</span></div></a>
+      <a class="chip" href="smartbin-cv.html"><span class="c-icon">♻️</span><div><span class="name">Waste CV</span><span class="sub">YOLOv8 + TTS</span></div></a>
+      <a class="chip" href="carbon-credit.html"><span class="c-icon">🌱</span><div><span class="name">Carbon Credit</span><span class="sub">Blockchain NFT</span></div></a>
+      <a class="chip" href="virtual-tour.html"><span class="c-icon">🏭</span><div><span class="name">Virtual Tour</span><span class="sub">Three.js VR</span></div></a>
+      <a class="chip" href="box-assembly.html"><span class="c-icon">📦</span><div><span class="name">Box Assembly</span><span class="sub">UR3 robot</span></div></a>
+      <a class="chip" href="delivery-robot.html"><span class="c-icon">🤖</span><div><span class="name">Delivery Robot</span><span class="sub">Map tracking</span></div></a>
+      <a class="chip" href="phishing.html"><span class="c-icon">🎣</span><div><span class="name">Phishing</span><span class="sub">URL detection</span></div></a>
+      <a class="chip" href="coop-matching.html"><span class="c-icon">🤝</span><div><span class="name">Co-op Match</span><span class="sub">AI matching</span></div></a>
+      <a class="chip" href="ev-bus.html"><span class="c-icon">🚌</span><div><span class="name">EV Bus</span><span class="sub">People count</span></div></a>
+      <a class="chip" href="vr-driving.html"><span class="c-icon">🚗</span><div><span class="name">VR Driving</span><span class="sub">AI scoring</span></div></a>
+      <a class="chip" href="smart-box.html"><span class="c-icon">📐</span><div><span class="name">Smart Box</span><span class="sub">Size sorting</span></div></a>
+      <a class="chip" href="face-check.html"><span class="c-icon">👤</span><div><span class="name">Face Check</span><span class="sub">Attendance</span></div></a>
     </div>
   </div>
 </section>
