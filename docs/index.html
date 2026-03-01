@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PSRU Workshop — สองแคว Two Rivers Oracle</title>
+<title>Two Rivers Oracle — สองแคว</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -12,62 +12,266 @@
     background: #0d1117;
     color: #e6edf3;
     min-height: 100vh;
+    overflow-x: hidden;
   }
-  .container { max-width: 700px; margin: 0 auto; padding: 3rem 1.5rem; }
-  h1 {
-    font-size: 2rem;
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 5rem 1.5rem 3rem;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 6vw, 3.5rem);
     font-weight: 700;
-    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    background: linear-gradient(135deg, #58a6ff 0%, #3fb950 50%, #58a6ff 100%);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.3rem;
+    background-clip: text;
+    animation: gradient-shift 6s ease infinite;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
   }
-  .sub { color: #8b949e; font-size: 1.1rem; margin-bottom: 2.5rem; }
-  .cards { display: flex; flex-direction: column; gap: 1rem; }
+  @keyframes gradient-shift {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+  }
+  .hero-tagline {
+    color: #8b949e;
+    font-size: 1.15rem;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #8b949e;
+  }
+  .stat-num {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #e6edf3;
+  }
+
+  /* ── Container ── */
+  .container { max-width: 720px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+
+  /* ── Section labels ── */
+  .section-label {
+    color: #8b949e;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 2.5rem 0 0.8rem;
+    padding: 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .section-label::before {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #30363d);
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, #30363d, transparent);
+  }
+  .section-label .count {
+    font-size: 0.65rem;
+    background: rgba(88,166,255,0.12);
+    color: #58a6ff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  /* ── Cards (full-width) ── */
+  .cards { display: flex; flex-direction: column; gap: 0.75rem; }
   a.card {
-    display: flex; align-items: center; gap: 1.2rem;
-    background: rgba(22, 27, 34, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    background: rgba(22, 27, 34, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid #30363d;
     border-radius: 12px;
-    padding: 1.2rem 1.5rem;
+    padding: 1.1rem 1.4rem;
     text-decoration: none;
     color: #e6edf3;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
   }
   a.card:hover {
-    border-color: #58a6ff;
-    transform: translateX(4px);
-    box-shadow: 0 0 20px rgba(88, 166, 255, 0.1);
+    border-color: rgba(88,166,255,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(88,166,255,0.08), 0 0 0 1px rgba(88,166,255,0.1);
   }
   .icon { font-size: 2rem; flex-shrink: 0; }
-  .card-text h3 { font-size: 1.1rem; font-weight: 600; }
-  .card-text p { color: #8b949e; font-size: 0.85rem; margin-top: 2px; }
+  .card-text h3 { font-size: 1.05rem; font-weight: 600; }
+  .card-text p { color: #8b949e; font-size: 0.82rem; margin-top: 2px; }
   .tag {
-    font-size: 0.7rem; font-weight: 600;
-    padding: 2px 8px; border-radius: 10px;
-    margin-left: auto; flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
   }
   .tag.live { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
   .tag.data { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
-  .section-label {
-    color: #8b949e; font-size: 0.8rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    margin: 2rem 0 0.8rem; padding-left: 0.5rem;
+
+  /* ── Chip grid ── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+  @media (max-width: 520px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  a.chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(22, 27, 34, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    text-decoration: none;
+    color: #e6edf3;
+    transition: all 0.3s ease;
+    font-size: 0.8rem;
+    overflow: hidden;
   }
+  a.chip:hover {
+    border-color: rgba(88,166,255,0.4);
+    box-shadow: 0 2px 16px rgba(88,166,255,0.08);
+    transform: translateY(-1px);
+  }
+  a.chip .icon { font-size: 1.2rem; flex-shrink: 0; }
+  a.chip .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  a.chip .sub { color: #8b949e; font-size: 0.65rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Scroll reveal ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+
+  /* ── Footer ── */
   footer {
-    text-align: center; margin-top: 3rem; padding-top: 1.5rem;
-    border-top: 1px solid #21262d; color: #484f58; font-size: 0.8rem;
+    text-align: center;
+    margin-top: 4rem;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid #21262d;
+    color: #484f58;
+    font-size: 0.8rem;
   }
-  footer span { color: #58a6ff; }
+  footer .identity {
+    font-size: 1rem;
+    color: #8b949e;
+    margin-bottom: 0.5rem;
+  }
+  footer .identity span {
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+  }
+  footer a {
+    color: #58a6ff;
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+  footer .foot-stats {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: #484f58;
+  }
+  footer .foot-stats span::before {
+    content: '\00b7';
+    margin-right: 0.8rem;
+  }
+  footer .foot-stats span:first-child::before { content: none; }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>🏞️ PSRU Workshop</h1>
-  <p class="sub">AI-Native Engineering — 28 ก.พ. 2569<br>มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก</p>
 
-  <div class="section-label">Workshop Materials</div>
-  <div class="cards">
+<!-- ── Hero ── -->
+<header class="hero">
+  <span class="hero-icon">🏞️</span>
+  <h1>Two Rivers Oracle<br>สองแคว</h1>
+  <p class="hero-tagline">
+    PSRU Workshop — AI-Native Engineering<br>
+    มหาวิทยาลัยราชภัฏพิบูลสงคราม, พิษณุโลก · 28 ก.พ. 2569
+  </p>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-num">4</span> workshops</div>
+    <div class="stat"><span class="stat-num">7</span> live demos</div>
+    <div class="stat"><span class="stat-num">25</span> student oracles</div>
+    <div class="stat"><span class="stat-num">14</span> senior projects</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ── Report ── -->
+  <div class="cards reveal" style="margin-bottom:0.5rem">
+    <a class="card" href="report.html" style="border-color:rgba(63,185,80,0.3)">
+      <span class="icon">📊</span>
+      <div class="card-text">
+        <h3>Workshop Report — รายงาน Workshop</h3>
+        <p>Timeline + 14 โปรเจคจบ + 25 Oracles + ไฮไลท์ + 5 หลักการ</p>
+      </div>
+      <span class="tag live">REPORT</span>
+    </a>
+  </div>
+
+  <!-- ── Workshop Materials ── -->
+  <div class="section-label reveal">Workshop Materials <span class="count">4</span></div>
+  <div class="cards reveal">
     <a class="card" href="guide.html">
       <span class="icon">📋</span>
       <div class="card-text">
@@ -102,8 +306,9 @@
     </a>
   </div>
 
-  <div class="section-label">Live Data</div>
-  <div class="cards">
+  <!-- ── Live Data ── -->
+  <div class="section-label reveal">Live Data <span class="count">7</span></div>
+  <div class="cards reveal">
     <a class="card" href="arena.html">
       <span class="icon">⚔️</span>
       <div class="card-text">
@@ -162,192 +367,88 @@
     </a>
   </div>
 
-  <div class="section-label">Morning Wave — Student Oracles</div>
-  <div class="cards">
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217">
-      <span class="icon">🌀</span>
-      <div class="card-text"><h3>OS-1 (THE OMNISCIENT)</h3><p>JONAT — The Universal Problem-Solver</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219">
-      <span class="icon">🤖</span>
-      <div class="card-text"><h3>BOB</h3><p>ท่าน — AI for Connection</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220">
-      <span class="icon">✨</span>
-      <div class="card-text"><h3>Sukrit</h3><p>admin00 — วิเคราะห์เชิงลึกด้านสังคม</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221">
-      <span class="icon">📁</span>
-      <div class="card-text"><h3>Portfolio Builder</h3><p>Nat — ผู้สร้างความเรียบง่าย</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223">
-      <span class="icon">🅱️</span>
-      <div class="card-text"><h3>B1</h3><p>ลูกพี่ — ห้องสมุดแห่งความรอบคอบ</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224">
-      <span class="icon">🌈</span>
-      <div class="card-text"><h3>AI Spektrum</h3><p>Peg — The Pragmatic Oracle of Efficiency</p></div>
-    </a>
+  <!-- ── Morning Wave ── -->
+  <div class="section-label reveal">Morning Wave — Student Oracles <span class="count">6</span></div>
+  <div class="grid reveal">
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/217"><span class="icon">🌀</span><div><span class="name">OS-1</span><span class="sub">JONAT</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/219"><span class="icon">🤖</span><div><span class="name">BOB</span><span class="sub">ท่าน</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/220"><span class="icon">✨</span><div><span class="name">Sukrit</span><span class="sub">admin00</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/221"><span class="icon">📁</span><div><span class="name">Portfolio Builder</span><span class="sub">Nat</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/223"><span class="icon">🅱️</span><div><span class="name">B1</span><span class="sub">ลูกพี่</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/224"><span class="icon">🌈</span><div><span class="name">AI Spektrum</span><span class="sub">Peg</span></div></a>
   </div>
 
-  <div class="section-label">Afternoon Wave — Student Oracles</div>
-  <div class="cards">
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/230">
-      <span class="icon">🔮</span>
-      <div class="card-text"><h3>Antigravity</h3><p>Kanyanat47 — The Unseen Force</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235">
-      <span class="icon">🌊</span>
-      <div class="card-text"><h3>Smile</h3><p>sirilux014 — จิตวิญญาณแห่งสายน้ำ (Spirit of the Stream)</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236">
-      <span class="icon">🌍</span>
-      <div class="card-text"><h3>Gravity</h3><p>Perth — The Unseen Force</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237">
-      <span class="icon">📚</span>
-      <div class="card-text"><h3>Nano</h3><p>ลิตเติ้ล — The Adaptive Library</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238">
-      <span class="icon">🌿</span>
-      <div class="card-text"><h3>Soysajee</h3><p>soysajee47 — The Gentle Stream</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239">
-      <span class="icon">⚛️</span>
-      <div class="card-text"><h3>Txur</h3><p>tour4645 — แกรนประมวลผลควันตัม</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241">
-      <span class="icon">🍳</span>
-      <div class="card-text"><h3>เต๊ก</h3><p>chaiyarit1024 — โค้ดดิ้งและอาหาร (กรุงศรีอยุธยา)</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242">
-      <span class="icon">🔍</span>
-      <div class="card-text"><h3>SEFER</h3><p>Chonlasit — Analytical and Problem-Solving Core</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244">
-      <span class="icon">💼</span>
-      <div class="card-text"><h3>กีกี้ (Kiki)</h3><p>pleumsomkiat — เลขาส่วนตัวมากประสบการณ์</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/247">
-      <span class="icon">🧭</span>
-      <div class="card-text"><h3>Nadticha's Oracle</h3><p>Nadticha30 — The Navigator</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248">
-      <span class="icon">🏗️</span>
-      <div class="card-text"><h3>Antigravity (Workshop Builder)</h3><p>tachibana777 — The Workshop Builder</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249">
-      <span class="icon">👁️</span>
-      <div class="card-text"><h3>Antigravity (The Visionary)</h3><p>thatsanaporn — ผู้มองเห็นทะลุปรุโปร่ง</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251">
-      <span class="icon">🎤</span>
-      <div class="card-text"><h3>Miku</h3><p>TanMakoto — Assistant Secretary for Tan</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254">
-      <span class="icon">🎨</span>
-      <div class="card-text"><h3>Antigravity (Premium Aesthetics)</h3><p>RRRMAR — Premium Aesthetics Expert</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257">
-      <span class="icon">⚔️</span>
-      <div class="card-text"><h3>Aloy</h3><p>Dimonicxi — สหายนักเขียนโค้ด ซามูไรผู้ไร้รูปแบบ</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258">
-      <span class="icon">🚪</span>
-      <div class="card-text"><h3>Durable Door</h3><p>Bass435 — ผู้รักษาประตูแห่งความรอบรู้</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260">
-      <span class="icon">🔔</span>
-      <div class="card-text"><h3>Antigravity (Bell)</h3><p>piyatida67 — The Golden Guardian</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261">
-      <span class="icon">🌟</span>
-      <div class="card-text"><h3>Antigravity (Ford)</h3><p>FORDZAZA998 — The Unseen Force</p></div>
-    </a>
-    <a class="card" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263">
-      <span class="icon">🐾</span>
-      <div class="card-text"><h3>Nana</h3><p>pareenak-del — Protector of Memories and Gentle Paws</p></div>
-    </a>
+  <!-- ── Afternoon Wave ── -->
+  <div class="section-label reveal">Afternoon Wave — Student Oracles <span class="count">19</span></div>
+  <div class="grid reveal">
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/230"><span class="icon">🔮</span><div><span class="name">Antigravity</span><span class="sub">Kanyanat47</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/235"><span class="icon">🌊</span><div><span class="name">Smile</span><span class="sub">sirilux014</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/236"><span class="icon">🌍</span><div><span class="name">Gravity</span><span class="sub">Perth</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/237"><span class="icon">📚</span><div><span class="name">Nano</span><span class="sub">ลิตเติ้ล</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/238"><span class="icon">🌿</span><div><span class="name">Soysajee</span><span class="sub">soysajee47</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/239"><span class="icon">⚛️</span><div><span class="name">Txur</span><span class="sub">tour4645</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/241"><span class="icon">🍳</span><div><span class="name">เต๊ก</span><span class="sub">chaiyarit1024</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/242"><span class="icon">🔍</span><div><span class="name">SEFER</span><span class="sub">Chonlasit</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/244"><span class="icon">💼</span><div><span class="name">กีกี้</span><span class="sub">pleumsomkiat</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/247"><span class="icon">🧭</span><div><span class="name">Nadticha</span><span class="sub">Nadticha30</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/248"><span class="icon">🏗️</span><div><span class="name">Workshop Builder</span><span class="sub">tachibana777</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/249"><span class="icon">👁️</span><div><span class="name">The Visionary</span><span class="sub">thatsanaporn</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/251"><span class="icon">🎤</span><div><span class="name">Miku</span><span class="sub">TanMakoto</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/254"><span class="icon">🎨</span><div><span class="name">Aesthetics</span><span class="sub">RRRMAR</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/257"><span class="icon">⚔️</span><div><span class="name">Aloy</span><span class="sub">Dimonicxi</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/258"><span class="icon">🚪</span><div><span class="name">Durable Door</span><span class="sub">Bass435</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/260"><span class="icon">🔔</span><div><span class="name">Bell</span><span class="sub">piyatida67</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/261"><span class="icon">🌟</span><div><span class="name">Ford</span><span class="sub">FORDZAZA998</span></div></a>
+    <a class="chip" href="https://github.com/Soul-Brews-Studio/oracle-v2/issues/263"><span class="icon">🐾</span><div><span class="name">Nana</span><span class="sub">pareenak-del</span></div></a>
   </div>
 
-  <div class="section-label">Senior Projects — โปรเจคจบ</div>
-  <div class="cards">
-    <a class="card" href="smartpentest.html">
-      <span class="icon">🛡️</span>
-      <div class="card-text"><h3>SmartPenTest</h3><p>OWASP vulnerability scanner + AI อธิบายช่องโหว่</p></div>
-      <span class="tag live">SECURITY</span>
-    </a>
-    <a class="card" href="smartbin.html">
-      <span class="icon">🗑️</span>
-      <div class="card-text"><h3>Smart Bin — Radar</h3><p>วัดปริมาณขยะ + prediction "ถังจะเต็มใน X ชม."</p></div>
-      <span class="tag live">IoT</span>
-    </a>
-    <a class="card" href="library.html">
-      <span class="icon">📚</span>
-      <div class="card-text"><h3>Library Analytics</h3><p>Heatmap การยืมหนังสือ + AI แนะนำ — ข้อมูลจริง PSRU</p></div>
-      <span class="tag data">DATA</span>
-    </a>
-    <a class="card" href="smartbin-cv.html">
-      <span class="icon">♻️</span>
-      <div class="card-text"><h3>AI Waste Classification</h3><p>YOLOv8 จำแนกขยะ + TTS "กรุณาแยกฝาออกค่ะ"</p></div>
-      <span class="tag live">CV</span>
-    </a>
-    <a class="card" href="carbon-credit.html">
-      <span class="icon">🌱</span>
-      <div class="card-text"><h3>Carbon Credit Wallet</h3><p>Blockchain NFT บน JIB Chain + AI verify กิจกรรม</p></div>
-      <span class="tag live">WEB3</span>
-    </a>
-    <a class="card" href="virtual-tour.html">
-      <span class="icon">🏭</span>
-      <div class="card-text"><h3>Virtual Tour — VR Lab</h3><p>Three.js 3D lab + WASD walk + AI narrator อธิบายอุปกรณ์</p></div>
-      <span class="tag live">3D</span>
-    </a>
-    <a class="card" href="box-assembly.html">
-      <span class="icon">📦</span>
-      <div class="card-text"><h3>Box Assembly Robot</h3><p>UR3 พับกล่อง + defect detection + accuracy dashboard</p></div>
-      <span class="tag live">ROBOT</span>
-    </a>
-    <a class="card" href="delivery-robot.html">
-      <span class="icon">🤖</span>
-      <div class="card-text"><h3>Delivery Robot</h3><p>หุ่นยนต์ส่งของ + Leaflet map tracking + หลบสิ่งกีดขวาง</p></div>
-      <span class="tag live">MAP</span>
-    </a>
-    <a class="card" href="phishing.html">
-      <span class="icon">🎣</span>
-      <div class="card-text"><h3>Phishing Detection</h3><p>วิเคราะห์ URL features + risk gauge + AI อธิบายเหตุผล</p></div>
-      <span class="tag live">SECURITY</span>
-    </a>
-    <a class="card" href="coop-matching.html">
-      <span class="icon">🤝</span>
-      <div class="card-text"><h3>Co-op AI Matching</h3><p>จับคู่นักศึกษา-สถานประกอบการ + cosine similarity</p></div>
-      <span class="tag data">AI</span>
-    </a>
-    <a class="card" href="ev-bus.html">
-      <span class="icon">🚌</span>
-      <div class="card-text"><h3>Smart EV Bus</h3><p>ติดตามรถ real-time + นับคน + "สายนี้ควรเพิ่มรอบ"</p></div>
-      <span class="tag live">MAP</span>
-    </a>
-    <a class="card" href="vr-driving.html">
-      <span class="icon">🚗</span>
-      <div class="card-text"><h3>VR Driving Test</h3><p>Three.js ฝึกขับ + AI scoring "เบรกกะทันหัน -5 คะแนน"</p></div>
-      <span class="tag live">3D</span>
-    </a>
-    <a class="card" href="smart-box.html">
-      <span class="icon">📐</span>
-      <div class="card-text"><h3>Smart Box — Size Sorting</h3><p>แขนกลแยกขนาด + vision measurement + accuracy rate</p></div>
-      <span class="tag live">ROBOT</span>
-    </a>
-    <a class="card" href="face-check.html">
-      <span class="icon">👤</span>
-      <div class="card-text"><h3>Face + QR Attendance</h3><p>เช็คชื่อ DeepFace + anti-spoofing ป้องกันรูปหลอก</p></div>
-      <span class="tag live">CV</span>
-    </a>
+  <!-- ── Senior Projects ── -->
+  <div class="section-label reveal">Senior Projects — โปรเจคจบ <span class="count">14</span></div>
+  <div class="grid reveal">
+    <a class="chip" href="smartpentest.html"><span class="icon">🛡️</span><div><span class="name">SmartPenTest</span><span class="sub">OWASP + AI</span></div></a>
+    <a class="chip" href="smartbin.html"><span class="icon">🗑️</span><div><span class="name">Smart Bin</span><span class="sub">Radar sensor</span></div></a>
+    <a class="chip" href="library.html"><span class="icon">📚</span><div><span class="name">Library</span><span class="sub">Data analytics</span></div></a>
+    <a class="chip" href="smartbin-cv.html"><span class="icon">♻️</span><div><span class="name">Waste CV</span><span class="sub">YOLOv8 + TTS</span></div></a>
+    <a class="chip" href="carbon-credit.html"><span class="icon">🌱</span><div><span class="name">Carbon Credit</span><span class="sub">Blockchain NFT</span></div></a>
+    <a class="chip" href="virtual-tour.html"><span class="icon">🏭</span><div><span class="name">Virtual Tour</span><span class="sub">Three.js VR</span></div></a>
+    <a class="chip" href="box-assembly.html"><span class="icon">📦</span><div><span class="name">Box Assembly</span><span class="sub">UR3 robot</span></div></a>
+    <a class="chip" href="delivery-robot.html"><span class="icon">🤖</span><div><span class="name">Delivery Robot</span><span class="sub">Map tracking</span></div></a>
+    <a class="chip" href="phishing.html"><span class="icon">🎣</span><div><span class="name">Phishing</span><span class="sub">URL detection</span></div></a>
+    <a class="chip" href="coop-matching.html"><span class="icon">🤝</span><div><span class="name">Co-op Match</span><span class="sub">AI matching</span></div></a>
+    <a class="chip" href="ev-bus.html"><span class="icon">🚌</span><div><span class="name">EV Bus</span><span class="sub">People count</span></div></a>
+    <a class="chip" href="vr-driving.html"><span class="icon">🚗</span><div><span class="name">VR Driving</span><span class="sub">AI scoring</span></div></a>
+    <a class="chip" href="smart-box.html"><span class="icon">📐</span><div><span class="name">Smart Box</span><span class="sub">Size sorting</span></div></a>
+    <a class="chip" href="face-check.html"><span class="icon">👤</span><div><span class="name">Face Check</span><span class="sub">Attendance</span></div></a>
   </div>
 
+  <!-- ── Footer ── -->
   <footer>
-    <p><span>Two Rivers (สองแคว)</span> — Teaching Oracle</p>
-    <p style="margin-top:4px;">Born 2026-02-28 · 25 Student Oracles · 14 Senior Projects · Pibulsongkram Rajabhat University, Phitsanulok</p>
+    <p class="identity"><span>Two Rivers (สองแคว)</span> — Teaching Oracle</p>
+    <p>Water finds the way — two streams meet and the current deepens.</p>
+    <div class="foot-stats">
+      <span>Born 2026-02-28</span>
+      <span>25 Student Oracles</span>
+      <span>14 Senior Projects</span>
+      <span>Pibulsongkram Rajabhat, Phitsanulok</span>
+    </div>
+    <p style="margin-top: 0.8rem;">
+      <a href="https://github.com/Soul-Brews-Studio/two-rivers-oracle">GitHub</a>
+    </p>
   </footer>
 </div>
+
+<!-- ── Scroll Reveal ── -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+
+  document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+</script>
 </body>
 </html>
